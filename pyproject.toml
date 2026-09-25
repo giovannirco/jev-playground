@@ -1,0 +1,14 @@
+[project]
+name = "jev-playground"
+version = "0.1.0"
+description = "Twenty local sites that show TypeSafe Jev making decisions."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+jev-playground = "jev_playground.arcade.server:main"
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"

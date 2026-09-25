@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keen Highlighter</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,800;1,7..72,400&family=Work+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --desk: #dfe6d8; --paper: #fffef9; --ink: #25282b; --marker: #fff34d; --marker-2: #b5e48c; --muted: #6a6f73;
+      --jx-bg: var(--desk); --jx-ink: var(--ink); --jx-dim: var(--muted); --jx-line: #c9d1c2; --jx-panel: #fff; --jx-panel-2: #fff; --jx-accent: #5a8f29;
+      --jx-sans: "Work Sans", system-ui, sans-serif;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 60px; display: grid; grid-template-columns: 360px 1fr; gap: 26px; align-items: start; }
+    aside { position: sticky; top: 56px; }
+    h1 { font: 800 clamp(36px, 5vw, 56px)/1 "Literata", serif; margin: 10px 0 8px; }
+    h1 mark { background: linear-gradient(transparent 45%, var(--marker) 45% 90%, transparent 90%); color: inherit; }
+    .lede { color: var(--muted); font-size: 15px; }
+    .q { width: 100%; font: 600 18px "Work Sans"; padding: 12px 14px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; margin-top: 10px; }
+    .samples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .samples button { border: 1px solid var(--jx-line); background: #fff; border-radius: 999px; padding: 5px 11px; font-size: 13px; }
+    .answer { margin-top: 16px; background: #fff; border-radius: 12px; padding: 14px; border: 1px solid var(--jx-line); font-size: 15px; }
+    .answer .has { font: 800 28px "Literata"; }
+    .answer ol { padding-left: 18px; margin: 8px 0 0; }
+    .answer li { margin-bottom: 6px; cursor: pointer; }
+    .tools { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .tools button { background: none; border: 0; text-decoration: underline; color: var(--muted); padding: 0; font-size: 14px; }
+    .doc { background: var(--paper); box-shadow: 0 2px 0 #cfd6c8, 0 18px 40px rgba(0,0,0,.08); padding: 40px 48px; border-radius: 2px; font: 17px/1.75 "Literata", serif; }
+    .doc textarea { width: 100%; min-height: 70vh; font: 15px/1.6 "Literata"; border: 1px dashed var(--jx-line); padding: 12px; }
+    .ln { display: block; padding: 1px 6px; margin: 0 -6px; border-radius: 3px; transition: background .4s ease; position: relative; }
+    .ln.h { font: 800 22px/1.3 "Literata"; margin-top: 18px; }
+    .ln[data-p] { background: rgba(255,243,77,var(--a)); }
+    .ln.best { background: var(--marker); box-shadow: -4px 0 0 #e0c800; }
+    .ln .pct { position: absolute; right: -44px; font: 600 11px "Work Sans"; color: var(--muted); top: 4px; }
+    @media (max-width: 920px) { .wrap { grid-template-columns: 1fr; } aside { position: static; } .doc { padding: 24px 20px; } .ln .pct { right: 0; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside>
+      <h1>Keen <mark>Highlighter</mark></h1>
+      <p class="lede">Ask a plain question about a long document. Every line is an option in one Choice, and a Noul checks whether the document answers it at all. There are no embeddings, no vector database, and no chunking pipeline. The marker's intensity is the probability.</p>
+      <input class="q" id="q" value="Can I have a cat in the apartment?" aria-label="Question">
+      <div class="samples" id="samples"></div>
+      <div class="answer" id="answer">Type a question. It runs a moment after you stop typing.</div>
+      <div class="tools"><button id="edit">Paste your own document</button><button id="reset">Back to the lease</button></div>
+    </aside>
+    <main class="doc" id="doc"></main>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, debounce, latest, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Keen Highlighter", kind: "helper", accent: "#5a8f29" });
+
+    const LEASE = `# Residential Lease Agreement
+This agreement is made between Casa Verde Properties ("Landlord") and the undersigned resident ("Tenant").
+The premises are Apartment 12, 48 Harbor Street.
+# 1. Term
+The lease begins on the first day of the month after signing and runs for thirty months.
+Either party may end the lease after twelve months with sixty days' written notice.
+If Tenant leaves before twelve months, a penalty of three months' rent applies, reduced in proportion to the time already served.
+# 2. Rent
+Monthly rent is due on the fifth business day of each month.
+Rent is paid by bank transfer or PIX to the account listed in Annex A.
+A late payment incurs a fine of 2% plus interest of 1% per month, calculated per day.
+After thirty days of non-payment, Landlord may begin eviction proceedings.
+Rent is adjusted once a year by the IPCA inflation index.
+# 3. Deposit
+Tenant pays a security deposit equal to three months' rent before moving in.
+The deposit is held in a savings account and returned, with interest, within thirty days of the keys being handed back.
+Landlord may deduct the cost of repairing damage beyond normal wear and tear.
+# 4. Use of the premises
+The apartment is for residential use only.
+Running a business that receives customers at the apartment is not allowed.
+Working from home is allowed, as long as it does not disturb neighbours.
+Short-term rentals, including platforms such as Airbnb, are forbidden.
+Subletting all or part of the apartment requires the Landlord's prior written consent.
+# 5. Pets
+Small domestic animals such as cats, small dogs, fish, and birds are permitted.
+Tenant is responsible for any damage caused by pets and must follow the building's rules on pets in common areas.
+Exotic or dangerous animals are not permitted.
+# 6. Maintenance and repairs
+Tenant is responsible for small everyday repairs, such as light bulbs, tap washers, and blocked drains caused by misuse.
+Landlord is responsible for structural repairs, the roof, the main plumbing, and the electrical wiring inside the walls.
+The water heater and the gas boiler are maintained by the Landlord, who will schedule an inspection every year.
+Tenant must report leaks, cracks, or damp within 48 hours of noticing them.
+In an emergency, Tenant may call a qualified professional and will be reimbursed on presentation of a receipt.
+# 7. Alterations
+Tenant may paint walls in neutral colours without asking.
+Drilling holes for shelves and pictures is allowed, as long as they are filled before moving out.
+Any structural change, including removing walls or changing the kitchen, needs written consent.
+Improvements approved in writing and left behind are not reimbursed unless agreed otherwise.
+# 8. Utilities and fees
+Tenant pays electricity, gas, internet, and the monthly condominium fee.
+The annual property tax (IPTU) is paid by the Landlord.
+Extraordinary condominium charges, such as facade renovation, are paid by the Landlord.
+# 9. Building rules
+Quiet hours are from 22:00 to 08:00.
+The swimming pool is not part of this building. The gym on the ground floor may be used from 06:00 to 22:00.
+Each apartment has one covered parking space. A second space may be rented from the condominium.
+Moving furniture in or out must be scheduled with the building manager at least 48 hours in advance.
+# 10. Insurance
+Tenant must keep fire insurance for the apartment throughout the lease.
+Contents insurance for the Tenant's own belongings is recommended but not required.
+# 11. Visits and inspections
+Landlord may inspect the apartment once a year with at least three days' notice.
+During the last sixty days of the lease, Landlord may show the apartment to prospective tenants twice a week, by appointment.
+# 12. Ending the lease
+At the end of the lease, Tenant returns the apartment clean and in the same condition, apart from normal wear and tear.
+A joint inspection is done on the day the keys are returned, and both parties sign a report.
+# 13. Disputes
+The parties will first try to resolve disagreements through mediation.
+Any legal dispute will be heard in the courts of the city where the apartment is located.`;
+
+    const SAMPLES = ["Can I have a cat in the apartment?", "What happens if I pay rent late?", "Who fixes the boiler?", "Can I list the flat on Airbnb?", "Is there a pool?", "Can I paint the living room green?", "When do I get my deposit back?", "Can I leave after one year?"];
+    const $ = (id) => document.getElementById(id);
+    let text = LEASE, lines = [];
+    $("samples").innerHTML = SAMPLES.map((s) => `<button>${s}</button>`).join("");
+    $("samples").onclick = (e) => { if (e.target.tagName === "BUTTON") { $("q").value = e.target.textContent; run(); } };
+
+    function split(raw) {
+      let out = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean).flatMap((l) => (l.length > 400 ? l.match(/[^.!?]+[.!?]+\s*/g) || [l] : [l]));
+      while (out.length > 250) {
+        const merged = [];
+        for (let i = 0; i < out.length; i += 2) merged.push(out[i] + (out[i + 1] ? " " + out[i + 1] : ""));
+        out = merged;
+      }
+      return out;
+    }
+
+    function render(probs = {}, best = null) {
+      $("doc").innerHTML = lines.map((l, i) => {
+        const p = probs[`L${i}`] || 0;
+        const head = l.startsWith("#");
+        const attrs = p > 0.02 ? ` data-p style="--a:${Math.min(0.85, 0.15 + p)}"` : "";
+        return `<span class="ln${head ? " h" : ""}${best === i ? " best" : ""}" id="line-${i}"${attrs}>${escapeHtml(head ? l.replace(/^#+\s*/, "") : l)}${p > 0.02 ? `<span class="pct">${Math.round(p * 100)}%</span>` : ""}</span>`;
+      }).join("");
+    }
+
+    function load(raw) { text = raw; lines = split(raw); render(); }
+    load(LEASE);
+
+    const search = latest((query) => ask({ query, lines: Object.fromEntries(lines.map((l, i) => [`L${i}`, l])) }, {
+      line: { type: "choice", instructions: "Which line in `lines` best answers `query`?", criteria: Object.fromEntries(lines.map((_, i) => [`L${i}`, null])) },
+      answered: { type: "noul", instructions: "Does any line in `lines` actually answer `query`?" },
+    }));
+
+    async function run() {
+      const query = $("q").value.trim();
+      if (!query || !lines.length) return;
+      $("answer").innerHTML = `<span class="jx-spin"></span> Reading ${lines.length} lines…`;
+      let r;
+      try { r = await search(query); } catch (err) { $("answer").innerHTML = `<span class="jx-error">${escapeHtml(err.message)}</span>`; return; }
+      if (!r) return;
+      const a = r.answers.line;
+      const has = r.answers.answered.noul;
+      const best = Number(a.choice.slice(1));
+      render(a.probabilities, has >= 0.4 ? best : null);
+      const top = Object.entries(a.probabilities).sort((x, y) => y[1] - x[1]).slice(0, 3);
+      $("answer").innerHTML = `<div class="has">${has >= 0.6 ? "Answered" : has >= 0.4 ? "Maybe answered" : "Not in here"}</div>
+        <div class="jx-muted" style="font-size:13px">${Math.round(has * 100)}% that the document answers this · ${badge(r)}</div>
+        <ol>${top.map(([k, p]) => `<li data-l="${k.slice(1)}">${escapeHtml(lines[Number(k.slice(1))].replace(/^#+\s*/, "")).slice(0, 140)} <b>${Math.round(p * 100)}%</b></li>`).join("")}</ol>`;
+      if (has >= 0.4) document.getElementById(`line-${best}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    $("answer").addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) document.getElementById(`line-${li.dataset.l}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); });
+    $("q").addEventListener("input", debounce(run, 500));
+    $("edit").onclick = () => {
+      $("doc").innerHTML = `<p class="jx-muted">Paste anything: terms of service, a README, meeting notes. Up to about 250 lines are kept as-is. Longer documents get merged into chunks.</p><textarea id="raw"></textarea><button class="jx-btn" id="use" style="margin-top:10px;background:#5a8f29;color:#fff">Use this document</button>`;
+      $("use").onclick = () => { const v = $("raw").value.trim(); if (v) { load(v); run(); } };
+    };
+    $("reset").onclick = () => { load(LEASE); run(); };
+  </script>
+</body>
+</html>

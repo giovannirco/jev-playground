@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Groaning Referee</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --poster: #f3e9d2; --ink: #141414; --red: #e10600; --blue: #0047ab; --orange: #f77f00;
+      --jx-bg: var(--poster); --jx-ink: var(--ink); --jx-dim: #5a5246; --jx-line: #cbbd9e; --jx-panel: #fff8e8; --jx-panel-2: #fff; --jx-accent: var(--red);
+      --jx-sans: "Archivo", sans-serif;
+    }
+    body {
+      background:
+        radial-gradient(circle, rgba(20,20,20,.13) 1.2px, transparent 1.6px) 0 0/7px 7px,
+        var(--poster);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 60px; }
+    .bill { text-align: center; border-bottom: 6px solid var(--ink); padding-bottom: 14px; }
+    .bill .tonight { font: 800 16px "Archivo"; letter-spacing: .3em; color: var(--red); }
+    h1 { font: 400 clamp(52px, 11vw, 136px)/.88 "Anton"; margin: 6px 0; text-transform: uppercase; color: var(--ink); }
+    .bill p { font-weight: 600; max-width: 62ch; margin: 8px auto 0; }
+    .topic { margin: 22px auto 0; text-align: center; }
+    .topic b { display: inline-block; background: var(--ink); color: var(--poster); font: 400 clamp(26px, 4vw, 40px) "Anton"; padding: 6px 18px; transform: rotate(-1.5deg); }
+    .topic button { display: block; margin: 10px auto 0; background: none; border: 0; text-decoration: underline; font-weight: 600; color: var(--jx-dim); }
+    .ring { display: grid; grid-template-columns: 1fr 90px 1fr; gap: 14px; margin-top: 26px; align-items: stretch; }
+    .corner { border: 5px solid var(--c); background: var(--jx-panel); padding: 16px; position: relative; }
+    .corner h2 { margin: 0 0 8px; font: 400 32px "Anton"; color: var(--c); text-transform: uppercase; }
+    .corner input.name { font: 800 16px "Archivo"; border: 0; border-bottom: 2px solid var(--c); background: transparent; width: 100%; padding: 4px 0; margin-bottom: 10px; }
+    .corner textarea { width: 100%; min-height: 110px; border: 2px solid var(--ink); background: #fff; padding: 10px; font: 600 18px/1.35 "Archivo"; resize: vertical; }
+    .corner .house { margin-top: 6px; background: none; border: 0; font-weight: 600; text-decoration: underline; color: var(--jx-dim); padding: 0; }
+    .vs { display: grid; place-items: center; font: 400 64px "Anton"; color: var(--orange); -webkit-text-stroke: 2px var(--ink); }
+    .bell { display: block; margin: 20px auto 0; background: var(--red); color: #fff; border: 4px solid var(--ink); font: 400 28px "Anton"; padding: 10px 36px; text-transform: uppercase; box-shadow: 6px 6px 0 var(--ink); }
+    .bell:disabled { opacity: .6; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; }
+    .score { border: 3px solid var(--ink); background: #fff; padding: 14px; }
+    .score h3 { margin: 0 0 8px; font: 400 26px "Anton"; color: var(--c); text-transform: uppercase; display: flex; justify-content: space-between; }
+    .score h3 span { color: var(--ink); }
+    .stat { display: grid; grid-template-columns: 140px 1fr 44px; gap: 8px; align-items: center; margin: 6px 0; font-weight: 600; font-size: 14px; }
+    .stat .t { height: 14px; border: 2px solid var(--ink); background: #fff; }
+    .stat .t span { display: block; height: 100%; background: var(--c); }
+    .tom { font-size: 26px; margin-top: 6px; min-height: 32px; }
+    .belt { margin-top: 20px; text-align: center; border: 5px double var(--ink); background: var(--jx-panel); padding: 18px; }
+    .belt h3 { font: 400 clamp(32px, 6vw, 60px)/1 "Anton"; margin: 0; text-transform: uppercase; }
+    .rec { margin-top: 20px; font-weight: 600; }
+    .rec li { margin-bottom: 4px; }
+    @media (max-width: 780px) { .ring { grid-template-columns: 1fr; } .vs { font-size: 40px; } .cards { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="bill">
+      <div class="tonight">Tonight only</div>
+      <h1>Groaning Referee</h1>
+      <p>Two punsters. One topic. A referee that scores wordplay, cleverness, and groan, then decides whether the crowd should throw tomatoes. The whole card is judged in one call.</p>
+    </header>
+    <div class="topic"><b id="topic">CHEESE</b><button id="reroll">Different topic</button></div>
+    <section class="ring">
+      <div class="corner" style="--c: var(--red)">
+        <h2>Red corner</h2>
+        <input class="name" id="na" value="The Pun-isher" aria-label="Red corner name">
+        <textarea id="pa" aria-label="Red corner pun">I tried to make a cheese pun, but it was too cheddar-ly obvious.</textarea>
+      </div>
+      <div class="vs">VS</div>
+      <div class="corner" style="--c: var(--blue)">
+        <h2>Blue corner</h2>
+        <input class="name" id="nb" value="The House" aria-label="Blue corner name">
+        <textarea id="pb" aria-label="Blue corner pun"></textarea>
+        <button class="house" id="house">Let the house write one</button>
+      </div>
+    </section>
+    <button class="bell" id="bell">Ring the bell</button>
+    <div class="cards" id="cards"></div>
+    <div id="belt"></div>
+    <ol class="rec" id="rec"></ol>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Groaning Referee", kind: "silly", accent: "#e10600" });
+
+    const HOUSE = {
+      cheese: ["What do you call cheese that isn't yours? Nacho cheese.", "Cheese puns? I find them grate.", "I'd tell you a cheese joke, but it's pretty cheesy."],
+      space: ["I'm reading a book about anti-gravity. It's impossible to put down.", "How do you throw a party in space? You planet.", "The Moon was hungry, so it had a full meal."],
+      coffee: ["Coffee has a tough life. It gets mugged every morning.", "I like my coffee like I like my puns: strong and brewtal.", "Decaf? No thanks, depresso isn't my style."],
+      kubernetes: ["My pods kept crashing, so I gave them some space. Namespace.", "I told my cluster a joke, but it didn't get the reference. It was a dangling pointer to a ConfigMap.", "Why did the pod break up with the node? It needed more resources in the relationship."],
+      fish: ["What do you call a fish with no eyes? A fsh.", "I'm hooked on fish puns, just for the halibut.", "Something smells fishy, and it's not just the tuna."],
+      trees: ["I wood tell you a tree joke, but I'm stumped.", "Trees are so social. They're always branching out.", "Leaf me alone, I'm pining."],
+      music: ["I used to play piano by ear, but now I use my hands.", "What's a skeleton's favorite instrument? The trom-bone.", "I tried to write a song about tortillas. It's more of a wrap."],
+      math: ["Parallel lines have so much in common. It's a shame they'll never meet.", "I'll do algebra, trig, and calculus, but graphing is where I draw the line.", "Why was six afraid of seven? Because seven eight nine."],
+    };
+    const TOPICS = Object.keys(HOUSE);
+    let topic = "cheese";
+    const record = [];
+    const $ = (id) => document.getElementById(id);
+
+    $("reroll").onclick = () => {
+      const others = TOPICS.filter((t) => t !== topic);
+      topic = others[Math.floor(Math.random() * others.length)];
+      $("topic").textContent = topic.toUpperCase();
+      $("pa").value = "";
+      $("pb").value = "";
+    };
+    $("house").onclick = () => {
+      const list = HOUSE[topic];
+      $("pb").value = list[Math.floor(Math.random() * list.length)];
+      $("nb").value = "The House";
+    };
+    $("house").click();
+
+    function perPun(key) {
+      return {
+        [`${key}_wordplay`]: { type: "score", instructions: `How strong is the wordplay in \`${key}\`?`, criteria: ["no wordplay at all", "a weak stretch", "a solid pun", "a clever pun", "a masterpiece of wordplay"] },
+        [`${key}_groan`]: { type: "score", instructions: `How hard would an audience groan at \`${key}\`?`, criteria: ["no reaction", "a small sigh", "a proper groan", "a room-wide groan", "people leave the building"] },
+        [`${key}_topic`]: { type: "noul", instructions: `Is \`${key}\` actually about \`topic\`?` },
+        [`${key}_ispun`]: { type: "noul", instructions: `Does \`${key}\` contain a pun or play on words?` },
+        [`${key}_tomatoes`]: { type: "noul", instructions: `Would a comedy-club crowd throw tomatoes at whoever said \`${key}\`?` },
+      };
+    }
+
+    const stat = (label, v, max) => `<div class="stat"><span>${label}</span><span class="t"><span style="width:${(v / max) * 100}%"></span></span><span>${max === 1 ? Math.round(v * 100) + "%" : v.toFixed(1)}</span></div>`;
+
+    $("bell").onclick = async () => {
+      const a = $("pa").value.trim(), b = $("pb").value.trim();
+      if (!a || !b) return;
+      $("bell").disabled = true;
+      try {
+        const r = await ask({ topic, pun_red: a, pun_blue: b }, {
+          ...perPun("pun_red"),
+          ...perPun("pun_blue"),
+          winner: { type: "choice", instructions: "Which pun is funnier and cleverer overall?", criteria: { red: "`pun_red`", blue: "`pun_blue`" } },
+        });
+        const A = r.answers;
+        const total = (k) => A[`${k}_wordplay`].score * 2 + A[`${k}_groan`].score + A[`${k}_topic`].noul * 2 + A[`${k}_ispun`].noul * 2 - A[`${k}_tomatoes`].noul * 1.5;
+        const card = (k, name, color) => `<div class="score" style="--c:${color}"><h3>${escapeHtml(name)} <span>${total(k).toFixed(1)}</span></h3>
+          ${stat("wordplay", A[`${k}_wordplay`].score, 4)}${stat("groan factor", A[`${k}_groan`].score, 4)}${stat("on topic", A[`${k}_topic`].noul, 1)}${stat("is a pun", A[`${k}_ispun`].noul, 1)}${stat("tomato risk", A[`${k}_tomatoes`].noul, 1)}
+          <div class="tom">${"🍅".repeat(Math.round(A[`${k}_tomatoes`].noul * 6))}</div></div>`;
+        $("cards").innerHTML = card("pun_red", $("na").value, "var(--red)") + card("pun_blue", $("nb").value, "var(--blue)");
+        const ta = total("pun_red"), tb = total("pun_blue");
+        const ref = A.winner.probabilities;
+        const agree = (ta > tb) === (ref.red > ref.blue);
+        const champ = ta >= tb ? $("na").value : $("nb").value;
+        $("belt").innerHTML = `<div class="belt"><h3>${escapeHtml(champ)} takes the belt</h3>
+          <p>Scorecard ${ta.toFixed(1)} to ${tb.toFixed(1)}. Asked directly, the referee's gut says red ${Math.round(ref.red * 100)}%, blue ${Math.round(ref.blue * 100)}%${agree ? "." : ". Gut and scorecard disagree, so expect a rematch."}</p>${badge(r)}</div>`;
+        record.unshift(`${topic}: ${champ} (${ta.toFixed(1)}–${tb.toFixed(1)})`);
+        $("rec").innerHTML = record.slice(0, 8).map((x) => `<li>${escapeHtml(x)}</li>`).join("");
+      } catch (err) {
+        $("belt").innerHTML = `<p class="jx-error">${escapeHtml(err.message)}</p>`;
+      }
+      $("bell").disabled = false;
+    };
+  </script>
+</body>
+</html>

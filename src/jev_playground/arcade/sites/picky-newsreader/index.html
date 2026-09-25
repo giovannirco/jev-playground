@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Picky Newsreader</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,800;1,6..72,400&family=Inter+Tight:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --newsprint: #f6f3ec; --ink: #1a1a1a; --hn: #ff6600; --rule: #1a1a1a; --muted: #6b665c;
+      --jx-bg: var(--newsprint); --jx-ink: var(--ink); --jx-dim: var(--muted); --jx-line: #d6d0c2; --jx-panel: #fff; --jx-panel-2: #fff; --jx-accent: var(--hn);
+      --jx-sans: "Inter Tight", system-ui, sans-serif;
+    }
+    .paper { max-width: 1180px; margin: 0 auto; padding: 18px 16px 60px; }
+    .flag { text-align: center; border-bottom: 3px double var(--rule); padding-bottom: 8px; }
+    .flag h1 { font: 800 clamp(44px, 9vw, 110px)/.9 "Newsreader", serif; margin: 6px 0; letter-spacing: -.02em; }
+    .flag .dateline { display: flex; justify-content: space-between; font: 600 12px "Inter Tight"; border-top: 1px solid var(--rule); padding-top: 6px; margin-top: 6px; gap: 10px; flex-wrap: wrap; }
+    .desk { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; margin: 16px 0; }
+    .desk label { font: 600 13px "Inter Tight"; display: block; margin-bottom: 4px; }
+    .desk input { width: 100%; border: 1px solid var(--rule); background: #fff; padding: 10px 12px; font: 16px "Newsreader", serif; }
+    .desk button { background: var(--hn); color: #fff; border: 0; padding: 12px 20px; font: 600 15px "Inter Tight"; }
+    .desk button:disabled { opacity: .6; }
+    .status { font: italic 15px "Newsreader"; color: var(--muted); margin-bottom: 12px; }
+    .lead { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; border-bottom: 1px solid var(--rule); padding-bottom: 18px; }
+    .lead .main h2 { font: 800 clamp(28px, 4vw, 44px)/1.05 "Newsreader"; margin: 6px 0; }
+    .lead .main h2 a, .story a { color: var(--ink); text-decoration: none; }
+    .lead .main h2 a:hover, .story a:hover { text-decoration: underline; text-decoration-color: var(--hn); }
+    .kicker { font: 600 11px "Inter Tight"; color: var(--hn); letter-spacing: .06em; text-transform: uppercase; }
+    .why { font: italic 17px/1.45 "Newsreader"; color: #333; }
+    .cols { columns: 3 280px; column-gap: 26px; column-rule: 1px solid var(--jx-line); margin-top: 18px; }
+    .story { break-inside: avoid; padding: 0 0 14px; margin-bottom: 14px; border-bottom: 1px solid var(--jx-line); }
+    .story h3 { font: 600 20px/1.2 "Newsreader"; margin: 4px 0; }
+    .meta { font: 12px "Inter Tight"; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+    .story.skip { opacity: .42; }
+    .story.skip h3 { font-weight: 400; }
+    .hype { display: inline-flex; gap: 2px; }
+    .hype i { width: 8px; height: 8px; border-radius: 50%; background: #ddd; display: inline-block; }
+    .hype i.on { background: var(--hn); }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 0; }
+    .chips span { font: 600 12px "Inter Tight"; padding: 3px 8px; border: 1px solid var(--rule); }
+    .bait { color: #b00020; font-weight: 600; }
+    @media (max-width: 780px) { .lead { grid-template-columns: 1fr; } .desk { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="paper">
+    <header class="flag">
+      <h1>The Picky Newsreader</h1>
+      <div class="dateline"><span id="date"></span><span>Edited by one decision model, no humans involved</span><span id="edition">Front page, unedited</span></div>
+    </header>
+    <div class="desk">
+      <div>
+        <label for="taste">What this reader cares about</label>
+        <input id="taste" value="Kubernetes, homelabs, self-hosting, AI models, Brazil, well-made developer tools. Not interested in crypto hype or funding rounds.">
+      </div>
+      <button id="go">Edit tonight's paper</button>
+    </div>
+    <p class="status" id="status">The front page comes from Hacker News, live. Press the button and Jev reads all thirty stories at once.</p>
+    <div id="page"></div>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Picky Newsreader", kind: "helper", accent: "#ff6600" });
+    const $ = (id) => document.getElementById(id);
+    $("date").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+    const SECTIONS = { ai: "AI and machine learning", code: "programming and developer tools", infra: "infrastructure, devops, cloud, self-hosting", security: "security and privacy", science: "science and space", hardware: "hardware and electronics", business: "business, startups, funding", society: "politics, law, society", culture: "culture, history, books, fun", other: "anything else" };
+    const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+    const dots = (n) => `<span class="hype" title="hype ${n.toFixed(1)} of 3">${[0, 1, 2].map((i) => `<i class="${n > i + 0.5 ? "on" : ""}"></i>`).join("")}</span>`;
+
+    $("go").onclick = async () => {
+      $("go").disabled = true;
+      $("status").textContent = "Fetching the front page…";
+      try {
+        const res = await fetch("/api/hn");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        const stories = data.stories;
+        $("status").textContent = `Jev is reading ${stories.length} headlines…`;
+        const q = {};
+        stories.forEach((_, i) => {
+          const s = `\`stories[${i}]\``;
+          q[`s${i}_sec`] = { type: "choice", instructions: `Which section does ${s} belong in?`, criteria: SECTIONS };
+          q[`s${i}_hype`] = { type: "score", instructions: `How hyped or breathless does the headline of ${s} sound?`, criteria: ["plain and factual", "a bit excited", "hyped", "maximum hype"] };
+          q[`s${i}_worth`] = { type: "noul", instructions: `Given \`reader\`, is ${s} worth this reader's evening?` };
+          q[`s${i}_bait`] = { type: "noul", instructions: `Is the headline of ${s} clickbait, withholding the point to get a click?` };
+        });
+        const r = await ask({ reader: $("taste").value, stories: stories.map((s) => ({ title: s.title, site: host(s.url) })) }, q);
+        const rows = stories.map((s, i) => ({ ...s, sec: r.answers[`s${i}_sec`].choice, hype: r.answers[`s${i}_hype`].score, worth: r.answers[`s${i}_worth`].noul, bait: r.answers[`s${i}_bait`].noul }));
+        rows.sort((a, b) => b.worth - a.worth);
+        const [top, ...rest] = rows;
+        const picks = rows.filter((x) => x.worth >= 0.5).length;
+        const counts = {};
+        rows.forEach((x) => (counts[x.sec] = (counts[x.sec] || 0) + 1));
+        $("edition").textContent = `${picks} of ${rows.length} stories survive the edit`;
+        $("status").innerHTML = `${badge(r)} ${rows.length} stories, ${r.questions} questions, one call.`;
+        const meta = (x) => `<div class="meta"><span>${escapeHtml(host(x.url))}</span><span>${x.points} pts</span><span>${x.comments} comments</span>${dots(x.hype)}${x.bait > 0.6 ? `<span class="bait">clickbait ${Math.round(x.bait * 100)}%</span>` : ""}<a href="https://news.ycombinator.com/item?id=${x.id}" target="_blank" rel="noopener" style="color:var(--muted)">discuss</a></div>`;
+        $("page").innerHTML = `
+          <section class="lead">
+            <div class="main"><span class="kicker">${escapeHtml(SECTIONS[top.sec])} · ${Math.round(top.worth * 100)}% worth it</span><h2><a href="${escapeHtml(top.url)}" target="_blank" rel="noopener">${escapeHtml(top.title)}</a></h2>${meta(top)}</div>
+            <div><p class="why">Tonight's edition leans ${Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => SECTIONS[k].split(",")[0].toLowerCase()).join(" and ")}. Stories this reader would skip are printed small and grey, but still printed. Every call is made by Jev, not by upvotes.</p>
+            <div class="chips">${Object.entries(counts).map(([k, v]) => `<span>${escapeHtml(SECTIONS[k].split(",")[0])} ${v}</span>`).join("")}</div></div>
+          </section>
+          <section class="cols">${rest.map((x) => `<article class="story ${x.worth < 0.5 ? "skip" : ""}"><span class="kicker">${escapeHtml(SECTIONS[x.sec].split(",")[0])} · ${Math.round(x.worth * 100)}%</span><h3><a href="${escapeHtml(x.url)}" target="_blank" rel="noopener">${escapeHtml(x.title)}</a></h3>${meta(x)}</article>`).join("")}</section>`;
+      } catch (err) {
+        $("status").innerHTML = `<span class="jx-error">${escapeHtml(err.message)}</span>`;
+      }
+      $("go").disabled = false;
+    };
+  </script>
+</body>
+</html>

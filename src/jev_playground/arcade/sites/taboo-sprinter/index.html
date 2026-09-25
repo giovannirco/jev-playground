@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taboo Sprinter</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      --magenta: #d6246e; --plum: #3a0f3f; --lemon: #ffd23f; --cyan: #2de2e6; --paper: #fff7e0;
+      --jx-bg: var(--plum); --jx-accent: var(--lemon); --jx-panel: #4d1653; --jx-panel-2: #5e1d66; --jx-line: #7a2d80; --jx-dim: #e8b9e6;
+      --jx-sans: "Rubik", system-ui, sans-serif;
+    }
+    body { background: radial-gradient(circle at 50% -20%, #7b1f73, var(--plum) 60%); }
+    .stage { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
+    h1 { font: 400 clamp(40px, 8vw, 88px)/.9 "Bungee", sans-serif; color: var(--lemon); margin: 12px 0 6px; text-shadow: 5px 5px 0 var(--magenta); }
+    .lede { color: var(--jx-dim); max-width: 60ch; margin: 0 0 22px; font-size: 17px; }
+    .board { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+    .card {
+      background: var(--paper); color: var(--plum); border-radius: 18px; padding: 22px;
+      transform: rotate(-2deg); box-shadow: 10px 10px 0 var(--magenta); position: relative;
+    }
+    .card .label { font: 700 13px "Rubik"; color: var(--magenta); }
+    .card .word { font: 400 40px/1 "Bungee", sans-serif; margin: 6px 0 16px; word-break: break-word; }
+    .card ul { list-style: none; padding: 0; margin: 0; border-top: 3px dashed var(--magenta); padding-top: 12px; }
+    .card li { font: 700 20px/1.6 "Rubik"; text-decoration: line-through; text-decoration-color: var(--magenta); text-decoration-thickness: 3px; }
+    .card li.hit { background: var(--magenta); color: #fff; text-decoration: none; padding: 0 6px; border-radius: 6px; }
+    .clock { font: 400 64px/1 "Bungee", sans-serif; color: var(--cyan); text-align: center; margin-top: 26px; font-variant-numeric: tabular-nums; }
+    .clock.low { color: var(--magenta); animation: pulse .5s infinite alternate; }
+    @keyframes pulse { to { transform: scale(1.06); } }
+    .scoreline { display: flex; justify-content: space-between; color: var(--jx-dim); font-weight: 500; margin-top: 10px; }
+    .scoreline b { color: var(--lemon); font-size: 22px; }
+    textarea { width: 100%; min-height: 120px; font: 500 22px/1.35 "Rubik"; background: #2a0a2e; border: 3px solid var(--lemon); border-radius: 14px; color: #fff; padding: 14px; resize: vertical; }
+    textarea:disabled { opacity: .6; }
+    .mind { margin-top: 16px; background: #2a0a2e; border-radius: 14px; padding: 16px; }
+    .mind h3 { margin: 0 0 10px; font: 700 15px "Rubik"; color: var(--cyan); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .guess { display: grid; grid-template-columns: 140px 1fr 60px; gap: 10px; align-items: center; font-weight: 700; margin: 6px 0; }
+    .guess .t { height: 22px; background: #3f1545; border-radius: 6px; overflow: hidden; }
+    .guess .t span { display: block; height: 100%; background: var(--jx-dim); transition: width .25s ease; }
+    .guess.target .t span { background: var(--lemon); }
+    .guess.target { color: var(--lemon); }
+    .guess .p { text-align: right; font-variant-numeric: tabular-nums; }
+    .threshold { position: relative; height: 0; }
+    .ctl { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .ctl button { font: 400 18px "Bungee"; border: 0; border-radius: 12px; padding: 12px 18px; background: var(--lemon); color: var(--plum); }
+    .ctl button.alt { background: transparent; color: var(--lemon); border: 3px solid var(--lemon); }
+    .flash { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font: 400 clamp(48px, 12vw, 140px) "Bungee"; color: var(--lemon); text-shadow: 6px 6px 0 var(--magenta); opacity: 0; }
+    .flash.go { animation: boom 1.1s ease forwards; }
+    @keyframes boom { 0% { opacity: 0; transform: scale(.6); } 20% { opacity: 1; transform: scale(1.05); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(1.2); } }
+    .log { margin-top: 18px; color: var(--jx-dim); font-size: 14px; }
+    .log li { margin-bottom: 4px; }
+    .rules { color: var(--jx-dim); font-size: 14px; margin-top: 14px; }
+    @media (max-width: 760px) { .board { grid-template-columns: 1fr; } .card { transform: none; } .guess { grid-template-columns: 100px 1fr 50px; } }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <h1>Taboo Sprinter</h1>
+    <p class="lede">Get Jev to name the word on the card without saying it or any of the words below it. On every pause in your typing, one Choice runs over all 200 words in the deck. Jev has to get past 80% on your word to win the round.</p>
+    <div class="board">
+      <aside>
+        <div class="card">
+          <div class="label">Make Jev say</div>
+          <div class="word" id="word">?</div>
+          <ul id="taboo"></ul>
+        </div>
+        <div class="clock" id="clock">60</div>
+        <div class="scoreline"><span>Round <b id="round">0</b>/5</span><span>Score <b id="score">0</b></span></div>
+        <p class="rules">Say a taboo word and the clue is voided until you delete it. Fewer seconds and fewer words score higher.</p>
+      </aside>
+      <section>
+        <textarea id="clue" placeholder="Press Start, then describe the word…" disabled></textarea>
+        <div class="mind">
+          <h3><span>Jev's top guesses</span><span id="speed"></span></h3>
+          <div id="guesses"><p class="jx-muted" style="margin:0">Guesses show up as soon as you pause.</p></div>
+        </div>
+        <div class="ctl">
+          <button id="start">Start</button>
+          <button id="skip" class="alt" disabled>Skip card</button>
+        </div>
+        <ol class="log" id="log"></ol>
+      </section>
+    </div>
+  </div>
+  <div class="flash" id="flash"></div>
+  <script type="module">
+    import { ask, chrome, debounce, latest, shuffle, badge } from "/shared/jev.js";
+    chrome({ title: "Taboo Sprinter", kind: "game", accent: "#ffd23f" });
+
+    const CARDS = {
+      volcano: ["lava", "mountain", "erupt", "magma"], penguin: ["bird", "ice", "antarctica", "tuxedo"], guitar: ["strings", "music", "rock", "chord"],
+      pizza: ["cheese", "italy", "slice", "pepperoni"], rainbow: ["colors", "rain", "sky", "arc"], vampire: ["blood", "dracula", "bite", "night"],
+      lighthouse: ["light", "ship", "coast", "tower"], astronaut: ["space", "nasa", "moon", "rocket"], umbrella: ["rain", "wet", "open", "handle"],
+      library: ["books", "read", "quiet", "borrow"], passport: ["travel", "country", "border", "photo"], dentist: ["teeth", "tooth", "mouth", "drill"],
+      snowman: ["snow", "carrot", "winter", "frosty"], treasure: ["gold", "pirate", "chest", "map"], wedding: ["marry", "bride", "ring", "groom"],
+      coffee: ["cup", "caffeine", "bean", "espresso"], tornado: ["wind", "storm", "twist", "kansas"], skateboard: ["wheels", "board", "trick", "ramp"],
+      dinosaur: ["extinct", "t-rex", "fossil", "jurassic"], karaoke: ["sing", "song", "microphone", "lyrics"], compass: ["north", "direction", "needle", "navigate"],
+      ghost: ["spirit", "haunt", "boo", "dead"], hammock: ["swing", "hang", "relax", "trees"], sushi: ["fish", "rice", "japan", "raw"],
+      mirror: ["reflection", "glass", "see", "face"], pyramid: ["egypt", "pharaoh", "triangle", "tomb"], firefighter: ["fire", "hose", "truck", "burn"],
+      honey: ["bee", "sweet", "hive", "sticky"], submarine: ["underwater", "ocean", "navy", "periscope"], chess: ["king", "queen", "board", "checkmate"],
+      tattoo: ["ink", "skin", "needle", "arm"], parachute: ["jump", "sky", "fall", "plane"], windmill: ["wind", "blades", "netherlands", "turn"],
+      popcorn: ["movie", "corn", "butter", "pop"], iceberg: ["ice", "titanic", "float", "cold"], wifi: ["internet", "wireless", "router", "password"],
+      zombie: ["undead", "brains", "walking", "dead"], hourglass: ["sand", "time", "glass", "timer"], samba: ["dance", "brazil", "carnival", "rhythm"],
+      kangaroo: ["australia", "jump", "pouch", "hop"],
+    };
+    const EXTRA = ["apple", "anchor", "bakery", "balloon", "banana", "barber", "basketball", "battery", "beach", "bicycle", "blanket", "bridge", "broom", "bubble", "butterfly", "cactus", "calendar", "camel", "camera", "candle", "canoe", "castle", "caterpillar", "cathedral", "chimney", "circus", "clock", "cloud", "clown", "comet", "cookie", "crocodile", "crown", "cupcake", "desert", "diamond", "dolphin", "dragon", "drum", "eagle", "earthquake", "elevator", "envelope", "escalator", "feather", "fence", "fireworks", "flamingo", "fountain", "fridge", "frog", "garden", "giraffe", "glacier", "glove", "goat", "helicopter", "hospital", "hurricane", "igloo", "island", "jellyfish", "jungle", "kettle", "kite", "ladder", "lemon", "lion", "lipstick", "lobster", "magnet", "marathon", "mask", "microscope", "moon", "mosquito", "motorcycle", "museum", "mushroom", "necklace", "octopus", "orchestra", "owl", "paintbrush", "pancake", "panda", "parrot", "peacock", "piano", "pillow", "pineapple", "planet", "pumpkin", "puzzle", "quicksand", "rabbit", "raccoon", "radio", "robot", "rocket", "sailboat", "sandwich", "satellite", "scarecrow", "scissors", "shark", "skeleton", "sloth", "snail", "spider", "sponge", "squirrel", "stadium", "starfish", "stethoscope", "sunflower", "swan", "telescope", "tent", "thunder", "tiger", "toaster", "toothbrush", "tractor", "trampoline", "tulip", "turtle", "unicorn", "violin", "waterfall", "whale", "whistle", "wolf", "yoga", "zebra", "zipper", "earring", "moustache", "suitcase", "vacuum", "wallet", "igloo2"];
+    const DECK = [...new Set([...Object.keys(CARDS), ...EXTRA.filter((w) => w !== "igloo2")])].slice(0, 200);
+    const CRITERIA = Object.fromEntries(DECK.map((w) => [w, null]));
+
+    const $ = (id) => document.getElementById(id);
+    const clue = $("clue");
+    let order = [], round = 0, score = 0, target = null, clock = 60, timer = null, live = false, wordsUsed = 0;
+
+    function tabooHit(text) {
+      const words = text.toLowerCase().match(/[a-z\-]+/g) || [];
+      const banned = [target, ...CARDS[target]];
+      const hits = new Set();
+      for (const w of words) for (const b of banned) if (w === b || w === b + "s" || (b.length > 4 && w.startsWith(b))) hits.add(b);
+      return hits;
+    }
+
+    function renderCard(hits = new Set()) {
+      $("word").textContent = target || "?";
+      $("taboo").innerHTML = (target ? CARDS[target] : []).map((w) => `<li class="${hits.has(w) ? "hit" : ""}">${w}</li>`).join("");
+    }
+
+    const guess = latest((text) => ask(text, {
+      word: {
+        type: "choice",
+        instructions: "A player is describing a secret word without saying it. Which word are they describing?",
+        criteria: CRITERIA,
+      },
+    }));
+
+    const think = debounce(async () => {
+      if (!live) return;
+      const text = clue.value.trim();
+      const hits = tabooHit(text);
+      renderCard(hits);
+      if (!text) return;
+      if (hits.size) {
+        $("guesses").innerHTML = `<p style="margin:0;color:#ff7ab6;font-weight:700">Taboo! You said “${[...hits].join(", ")}”. Delete it and Jev will listen again.</p>`;
+        return;
+      }
+      let r;
+      try { r = await guess(text); } catch (e) { $("guesses").innerHTML = `<p class="jx-error">${e.message}</p>`; return; }
+      if (!r || !live) return;
+      const a = r.answers.word;
+      const top = Object.entries(a.probabilities).sort((x, y) => y[1] - x[1]).slice(0, 6);
+      if (!top.some(([w]) => w === target)) top[5] = [target, a.probabilities[target] || 0];
+      $("speed").innerHTML = badge(r);
+      $("guesses").innerHTML = top.map(([w, p]) => `<div class="guess ${w === target ? "target" : ""}"><span>${w}</span><span class="t"><span style="width:${Math.max(1, p * 100)}%"></span></span><span class="p">${Math.round(p * 100)}%</span></div>`).join("");
+      if ((a.probabilities[target] || 0) >= 0.8) win(a.probabilities[target]);
+    }, 280);
+
+    clue.addEventListener("input", () => { wordsUsed = (clue.value.match(/\S+/g) || []).length; think(); });
+
+    function flash(text) { const f = $("flash"); f.textContent = text; f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+
+    function win(p) {
+      live = false;
+      clearInterval(timer);
+      const pts = Math.round(clock * 10 + Math.max(0, 30 - wordsUsed) * 5);
+      score += pts;
+      $("score").textContent = score;
+      $("log").insertAdjacentHTML("beforeend", `<li><b>${target}</b>: ${Math.round(p * 100)}% with ${wordsUsed} words and ${clock}s left, +${pts}. <i>“${clue.value.trim().slice(0, 90)}”</i></li>`);
+      flash("GOT IT!");
+      setTimeout(next, 1300);
+    }
+
+    function lose(reason) {
+      live = false;
+      clearInterval(timer);
+      $("log").insertAdjacentHTML("beforeend", `<li><b>${target}</b>: ${reason}, +0.</li>`);
+      flash(reason === "time" ? "TIME!" : "SKIP");
+      setTimeout(next, 1100);
+    }
+
+    function next() {
+      round += 1;
+      if (round > 5) {
+        clue.disabled = true;
+        $("skip").disabled = true;
+        $("start").disabled = false;
+        $("start").textContent = "Play again";
+        flash(`${score} PTS`);
+        target = null;
+        renderCard();
+        return;
+      }
+      target = order[round - 1];
+      $("round").textContent = round;
+      clock = 60;
+      $("clock").textContent = clock;
+      $("clock").classList.remove("low");
+      clue.value = "";
+      clue.disabled = false;
+      clue.focus();
+      $("guesses").innerHTML = `<p class="jx-muted" style="margin:0">Go.</p>`;
+      renderCard();
+      live = true;
+      timer = setInterval(() => {
+        clock -= 1;
+        $("clock").textContent = clock;
+        if (clock <= 10) $("clock").classList.add("low");
+        if (clock <= 0) lose("time");
+      }, 1000);
+    }
+
+    $("start").onclick = () => {
+      order = shuffle(Object.keys(CARDS)).slice(0, 5);
+      round = 0; score = 0;
+      $("score").textContent = 0;
+      $("log").innerHTML = "";
+      $("start").disabled = true;
+      $("skip").disabled = false;
+      next();
+    };
+    $("skip").onclick = () => { if (live) lose("skipped"); };
+    renderCard();
+  </script>
+</body>
+</html>

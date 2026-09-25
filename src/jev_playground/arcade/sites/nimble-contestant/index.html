@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nimble Contestant</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Righteous&family=Nunito+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      --studio: #10164a; --studio-2: #1b2470; --bulb: #ffe45e; --hot: #ff4f79; --sky: #4cc9f0; --grape: #7b2cbf;
+      --jx-bg: var(--studio); --jx-accent: var(--bulb); --jx-panel: #18206a; --jx-line: #2d3a9a; --jx-dim: #aab4ff;
+      --jx-sans: "Nunito Sans", system-ui, sans-serif;
+    }
+    body { background: radial-gradient(ellipse at 50% 120%, var(--grape), transparent 60%), radial-gradient(ellipse at 50% -40%, #2d3aa8, var(--studio) 70%); }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; text-align: center; }
+    .marquee { display: inline-block; padding: 18px 34px; border-radius: 22px; background: #0a0e33; position: relative; margin-top: 8px;
+      box-shadow: 0 0 0 6px #0a0e33, 0 0 0 10px var(--bulb), 0 0 40px rgba(255,228,94,.35); }
+    .marquee::before { content: ""; position: absolute; inset: -9px; border-radius: 28px; background: radial-gradient(circle, var(--bulb) 2.5px, transparent 3px) 0 0/18px 18px; opacity: .9; animation: chase 1s steps(2) infinite; pointer-events: none; mask: linear-gradient(#000 0 0) exclude, linear-gradient(#000 0 0) content-box; padding: 4px; }
+    @keyframes chase { to { background-position: 9px 0; } }
+    h1 { font: 400 clamp(38px, 7vw, 80px)/1 "Righteous"; color: var(--bulb); margin: 0; text-shadow: 0 0 18px rgba(255,228,94,.6); }
+    .lede { color: var(--jx-dim); max-width: 60ch; margin: 22px auto; }
+    .podiums { display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px; align-items: end; margin: 18px 0; }
+    .podium { background: linear-gradient(180deg, var(--studio-2), #0c1140); border-radius: 16px 16px 4px 4px; padding: 16px; border-top: 6px solid var(--c); }
+    .podium .who { font: 400 22px "Righteous"; color: var(--c); }
+    .podium .pts { font: 900 60px/1 "Nunito Sans"; color: #fff; }
+    .podium .light { width: 26px; height: 26px; border-radius: 50%; margin: 8px auto 0; background: #222a66; transition: background .1s, box-shadow .1s; }
+    .podium.buzz .light { background: var(--c); box-shadow: 0 0 24px var(--c); }
+    .timer { font: 900 44px/1 "Nunito Sans"; color: var(--bulb); min-width: 120px; font-variant-numeric: tabular-nums; }
+    .timer small { display: block; font: 700 12px "Nunito Sans"; color: var(--jx-dim); }
+    .q { background: #0a0e33; border: 2px solid var(--jx-line); border-radius: 18px; padding: 24px; font: 800 clamp(22px, 3.4vw, 32px)/1.25 "Nunito Sans"; color: #fff; min-height: 100px; }
+    .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+    .opts button { background: var(--studio-2); border: 2px solid var(--jx-line); color: #fff; border-radius: 14px; padding: 16px; font: 700 20px "Nunito Sans"; text-align: left; display: flex; gap: 12px; align-items: center; }
+    .opts button span { font: 400 20px "Righteous"; color: var(--bulb); }
+    .opts button:hover:not(:disabled) { border-color: var(--bulb); }
+    .opts button.right { background: #0f7b5a; border-color: #28e0a6; }
+    .opts button.wrong { background: #7b1030; border-color: var(--hot); }
+    .opts button.jev { outline: 4px dashed var(--sky); outline-offset: 3px; }
+    .opts button:disabled { cursor: default; }
+    .ctl { margin-top: 18px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center; }
+    .ctl button { font: 400 20px "Righteous"; background: var(--bulb); border: 0; border-radius: 12px; padding: 12px 22px; color: var(--studio); }
+    .ctl select { background: var(--studio-2); border: 2px solid var(--jx-line); border-radius: 10px; padding: 10px; color: #fff; }
+    .say { margin-top: 14px; min-height: 28px; font-weight: 700; color: var(--jx-dim); }
+    .lat { font: 12px var(--jx-mono); color: var(--jx-dim); margin-top: 8px; }
+    @media (max-width: 640px) { .opts { grid-template-columns: 1fr; } .podiums { grid-template-columns: 1fr 1fr; } .timer { grid-column: 1 / -1; order: -1; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="marquee"><h1>Nimble Contestant</h1></div>
+    <p class="lede">A quiz show where your opponent reads the question and answers in about half a second. We gave it a handicap: Jev's buzzer only fires after its real response time multiplied by the handicap you pick. Its answer is locked in the moment it arrives, before you touch anything.</p>
+    <div class="podiums">
+      <div class="podium" id="p-you" style="--c: var(--hot)"><div class="who">You</div><div class="pts" id="s-you">0</div><div class="light"></div></div>
+      <div class="timer"><span id="clock">0.00</span><small>seconds</small></div>
+      <div class="podium" id="p-jev" style="--c: var(--sky)"><div class="who">Jev</div><div class="pts" id="s-jev">0</div><div class="light"></div></div>
+    </div>
+    <div class="q" id="q">Ten questions. Beat the machine to the buzzer.</div>
+    <div class="opts" id="opts"></div>
+    <div class="say" id="say"></div>
+    <div class="lat" id="lat"></div>
+    <div class="ctl">
+      <label>Handicap <select id="hc">
+        <option value="1">Hare ×1 (real speed, good luck)</option>
+        <option value="4">Fox ×4</option>
+        <option value="8" selected>Tortoise ×8</option>
+        <option value="15">Sloth ×15</option>
+      </select></label>
+      <button id="go">Start the show</button>
+    </div>
+  </div>
+  <script type="module">
+    import { ask, chrome, shuffle, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Nimble Contestant", kind: "game", accent: "#ffe45e" });
+
+    const BANK = [
+      ["Which planet has the most confirmed moons?", ["Jupiter", "Saturn", "Uranus", "Neptune"], 1],
+      ["What is the capital of Canada?", ["Toronto", "Vancouver", "Ottawa", "Montreal"], 2],
+      ["Which element has the chemical symbol K?", ["Krypton", "Potassium", "Calcium", "Kalium-ite"], 1],
+      ["Who painted the ceiling of the Sistine Chapel?", ["Raphael", "Leonardo da Vinci", "Donatello", "Michelangelo"], 3],
+      ["What is the largest organ of the human body?", ["Liver", "Skin", "Lungs", "Brain"], 1],
+      ["In which country did the samba originate?", ["Brazil", "Cuba", "Argentina", "Portugal"], 0],
+      ["What does the 'HTTP' in web addresses stand for?", ["HyperText Transfer Protocol", "High Tech Text Process", "Hyperlink Transfer Program", "Host Terminal Transfer Protocol"], 0],
+      ["Which ocean is the largest?", ["Atlantic", "Indian", "Arctic", "Pacific"], 3],
+      ["How many sides does a hexagon have?", ["Five", "Six", "Seven", "Eight"], 1],
+      ["Which composer wrote the 'Moonlight Sonata'?", ["Mozart", "Bach", "Beethoven", "Chopin"], 2],
+      ["What gas do plants absorb from the air for photosynthesis?", ["Oxygen", "Nitrogen", "Carbon dioxide", "Helium"], 2],
+      ["Which country gifted the Statue of Liberty to the United States?", ["England", "France", "Spain", "Italy"], 1],
+      ["What is the hardest natural substance?", ["Gold", "Iron", "Quartz", "Diamond"], 3],
+      ["Which animal is known as the 'ship of the desert'?", ["Horse", "Camel", "Elephant", "Donkey"], 1],
+      ["Who wrote 'One Hundred Years of Solitude'?", ["Jorge Luis Borges", "Gabriel García Márquez", "Isabel Allende", "Mario Vargas Llosa"], 1],
+      ["What is the smallest prime number?", ["0", "1", "2", "3"], 2],
+      ["Which programming language was created by Guido van Rossum?", ["Ruby", "Python", "Perl", "Go"], 1],
+      ["What is the currency of Japan?", ["Yuan", "Won", "Yen", "Ringgit"], 2],
+      ["Which metal is liquid at room temperature?", ["Mercury", "Lead", "Tin", "Aluminium"], 0],
+      ["The Great Barrier Reef lies off the coast of which country?", ["Indonesia", "Australia", "Philippines", "New Zealand"], 1],
+      ["Which blood type is known as the universal donor?", ["A+", "AB+", "O-", "B-"], 2],
+      ["Who developed the theory of general relativity?", ["Isaac Newton", "Niels Bohr", "Albert Einstein", "Max Planck"], 2],
+      ["Which is the longest river in South America?", ["Paraná", "Orinoco", "São Francisco", "Amazon"], 3],
+      ["What is the main ingredient of guacamole?", ["Tomato", "Avocado", "Lime", "Pepper"], 1],
+      ["Which company created the Linux kernel?", ["None, Linus Torvalds started it as a personal project", "IBM", "Red Hat", "Microsoft"], 0],
+      ["What is the freezing point of water in Fahrenheit?", ["0°F", "32°F", "100°F", "-32°F"], 1],
+      ["In chess, which piece can only move diagonally?", ["Rook", "Knight", "Bishop", "King"], 2],
+      ["Which planet is closest to the Sun?", ["Venus", "Mercury", "Mars", "Earth"], 1],
+      ["What is the tallest animal on Earth?", ["Elephant", "Giraffe", "Ostrich", "Moose"], 1],
+      ["Which continent is the Atacama Desert on?", ["Africa", "Asia", "South America", "Australia"], 2],
+      ["What does a seismograph measure?", ["Wind speed", "Earthquakes", "Rainfall", "Temperature"], 1],
+      ["Who is the author of 'Harry Potter'?", ["J.R.R. Tolkien", "C.S. Lewis", "J.K. Rowling", "Roald Dahl"], 2],
+      ["How many players does a football (soccer) team have on the field?", ["Nine", "Ten", "Eleven", "Twelve"], 2],
+      ["Which vitamin does sunlight help the body produce?", ["Vitamin A", "Vitamin C", "Vitamin D", "Vitamin K"], 2],
+      ["What is the capital of Australia?", ["Sydney", "Melbourne", "Canberra", "Perth"], 2],
+      ["Which instrument has 88 keys?", ["Organ", "Piano", "Accordion", "Harpsichord"], 1],
+      ["Kubernetes was originally designed by which company?", ["Amazon", "Google", "Microsoft", "Docker"], 1],
+      ["What is the fastest land animal?", ["Lion", "Pronghorn", "Cheetah", "Greyhound"], 2],
+      ["Which is the most spoken native language in the world?", ["English", "Spanish", "Hindi", "Mandarin Chinese"], 3],
+      ["What colour do you get by mixing blue and yellow paint?", ["Green", "Purple", "Orange", "Brown"], 0],
+    ];
+    const L = ["A", "B", "C", "D"];
+    const $ = (id) => document.getElementById(id);
+    let deck = [], n = 0, you = 0, jev = 0, open = false, jevPick = null, jevTimer = null, clockTimer = null, t0 = 0, totalMs = 0;
+
+    function buzz(who) {
+      const el = $(`p-${who}`);
+      el.classList.add("buzz");
+      setTimeout(() => el.classList.remove("buzz"), 600);
+    }
+
+    function score() { $("s-you").textContent = you; $("s-jev").textContent = jev; }
+
+    async function round() {
+      if (n >= deck.length) {
+        $("q").textContent = you > jev ? `You win, ${you} to ${jev}. Humanity holds on for another day.` : you === jev ? `A tie, ${you} to ${jev}.` : `Jev wins, ${jev} to ${you}, and its average real answer time was ${Math.round(totalMs / deck.length)} ms.`;
+        $("opts").innerHTML = "";
+        $("go").textContent = "Play again";
+        $("go").disabled = false;
+        return;
+      }
+      const [question, options, answer] = deck[n];
+      $("q").textContent = `${n + 1}. ${question}`;
+      $("opts").innerHTML = options.map((o, i) => `<button data-i="${i}"><span>${L[i]}</span>${escapeHtml(o)}</button>`).join("");
+      $("say").textContent = "";
+      open = true; jevPick = null;
+      t0 = performance.now();
+      clearInterval(clockTimer);
+      clockTimer = setInterval(() => ($("clock").textContent = ((performance.now() - t0) / 1000).toFixed(2)), 30);
+      const hc = Number($("hc").value);
+      try {
+        const r = await ask({ question, options: Object.fromEntries(options.map((o, i) => [L[i], o])) }, {
+          answer: { type: "choice", instructions: "Which option correctly answers `question`?", criteria: Object.fromEntries(options.map((o, i) => [L[i], o])) },
+        });
+        totalMs += r.elapsed_ms;
+        jevPick = L.indexOf(r.answers.answer.choice);
+        const conf = r.answers.answer.probabilities[r.answers.answer.choice];
+        $("lat").textContent = `Jev locked in ${L[jevPick]} at ${Math.round(conf * 100)}% after ${Math.round(r.elapsed_ms)} ms. Its buzzer fires at ${(r.elapsed_ms * hc / 1000).toFixed(2)} s.`;
+        const wait = Math.max(0, r.elapsed_ms * hc - (performance.now() - t0));
+        jevTimer = setTimeout(() => resolve("jev", jevPick), wait);
+      } catch (err) {
+        $("lat").textContent = err.message;
+      }
+    }
+
+    function resolve(who, pick) {
+      if (!open) return;
+      open = false;
+      clearTimeout(jevTimer);
+      clearInterval(clockTimer);
+      buzz(who);
+      const answer = deck[n][2];
+      const btns = [...$("opts").children];
+      btns.forEach((b) => (b.disabled = true));
+      btns[answer].classList.add("right");
+      if (pick !== answer) btns[pick].classList.add("wrong");
+      if (jevPick != null) btns[jevPick].classList.add("jev");
+      const right = pick === answer;
+      if (who === "you") {
+        if (right) { you += 1; $("say").textContent = "You beat the machine to the buzzer!"; }
+        else { jev += jevPick === answer ? 1 : 0; $("say").textContent = jevPick === answer ? "Wrong. Jev steals the point." : "Wrong, and Jev had it wrong too. Nobody scores."; }
+      } else {
+        if (right) { jev += 1; $("say").textContent = "Jev buzzes first and gets it right."; }
+        else { you += 1; $("say").textContent = "Jev buzzed with the wrong answer! The point is yours."; }
+      }
+      score();
+      n += 1;
+      setTimeout(round, 2200);
+    }
+
+    $("opts").addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b || !open) return;
+      resolve("you", Number(b.dataset.i));
+    });
+
+    $("go").onclick = () => {
+      deck = shuffle(BANK).slice(0, 10);
+      n = 0; you = 0; jev = 0; totalMs = 0;
+      score();
+      $("go").disabled = true;
+      round();
+    };
+  </script>
+</body>
+</html>

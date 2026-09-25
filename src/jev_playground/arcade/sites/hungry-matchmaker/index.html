@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hungry Matchmaker</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --tile: #e9f5ef; --grout: #d3e8dc; --tomato: #fb5607; --basil: #2a9d63; --ink: #1f2a24; --butter: #ffe8a3;
+      --jx-bg: var(--tile); --jx-ink: var(--ink); --jx-dim: #5d6d64; --jx-line: #c7ddd0; --jx-panel: #fff; --jx-panel-2: #fff; --jx-accent: var(--tomato);
+      --jx-sans: "Bricolage Grotesque", system-ui, sans-serif;
+    }
+    body { background: linear-gradient(var(--grout) 2px, transparent 2px) 0 0/64px 64px, linear-gradient(90deg, var(--grout) 2px, transparent 2px) 0 0/64px 64px, var(--tile); }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 18px 16px 60px; display: grid; grid-template-columns: 360px 1fr; gap: 26px; align-items: start; }
+    h1 { font: 800 clamp(40px, 6vw, 68px)/.92 "Bricolage Grotesque"; margin: 8px 0 10px; letter-spacing: -.03em; }
+    .lede { color: var(--jx-dim); }
+    .fridge { background: #fff; border-radius: 22px; padding: 16px; box-shadow: 0 10px 0 var(--grout); margin-top: 14px; }
+    .fridge label { font-weight: 800; display: block; margin-bottom: 6px; }
+    .fridge textarea { width: 100%; min-height: 120px; border: 2px solid var(--ink); border-radius: 14px; padding: 12px; font: 17px/1.4 "Bricolage Grotesque"; resize: vertical; }
+    .magnets { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+    .magnets button { border: 0; border-radius: 8px; padding: 5px 10px; font: 600 14px "Bricolage Grotesque"; background: var(--butter); transform: rotate(var(--r, -2deg)); box-shadow: 0 2px 0 rgba(0,0,0,.15); }
+    .opts { display: grid; gap: 8px; margin-top: 10px; font-size: 15px; }
+    .opts select { border: 2px solid var(--ink); border-radius: 10px; padding: 6px 8px; background: #fff; font: inherit; }
+    .go { width: 100%; margin-top: 14px; background: var(--tomato); color: #fff; border: 0; border-radius: 14px; padding: 14px; font: 800 20px "Bricolage Grotesque"; }
+    .go:disabled { opacity: .6; }
+    .stats { margin-top: 10px; font-size: 14px; color: var(--jx-dim); }
+    .deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+    .card { background: #fff; border-radius: 20px; padding: 16px; box-shadow: 0 8px 0 var(--grout); position: relative; overflow: hidden; }
+    .card.match { outline: 3px solid var(--basil); }
+    .card.nope { opacity: .45; }
+    .card .emoji { font-size: 40px; }
+    .card h3 { margin: 6px 0 4px; font: 800 20px/1.15 "Bricolage Grotesque"; }
+    .card .need { font-size: 13px; color: var(--jx-dim); }
+    .card .heart { position: absolute; top: 14px; right: 14px; font: 800 22px "Bricolage Grotesque"; color: var(--basil); }
+    .card.nope .heart { color: var(--jx-dim); }
+    .card .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .card .tags span { font-size: 12px; background: var(--tile); border-radius: 6px; padding: 2px 6px; }
+    .section-title { font: 800 26px "Bricolage Grotesque"; margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    @media (max-width: 880px) { .wrap { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section>
+      <h1>Hungry Matchmaker</h1>
+      <p class="lede">A dating app where you're matched with recipes. Tell it what's in your fridge. Sixty recipes are each asked whether you can make them tonight, whether they fit your mood, and whether they fit your time, all in one call.</p>
+      <div class="fridge">
+        <label for="fridge">In my fridge and pantry</label>
+        <textarea id="fridge">eggs, half an onion, a bit of cheddar, rice from yesterday, frozen peas, soy sauce, garlic, a sad carrot, butter, flour, milk</textarea>
+        <div class="magnets" id="magnets"></div>
+        <div class="opts">
+          <label>Mood <select id="mood"><option>comforting</option><option>light and fresh</option><option>spicy</option><option>impressive for a date</option><option>something for kids</option></select></label>
+          <label>Time <select id="time"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="60">an hour</option><option value="180">all evening</option></select></label>
+          <label>Diet <select id="diet"><option value="anything">anything</option><option value="vegetarian">vegetarian</option><option value="vegan">vegan</option><option value="gluten-free">gluten-free</option></select></label>
+        </div>
+        <button class="go" id="go">Find my matches</button>
+        <div class="stats" id="stats"></div>
+      </div>
+    </section>
+    <section>
+      <div class="section-title"><span id="title">Sixty recipes waiting to meet you</span><span id="badge"></span></div>
+      <div class="deck" id="deck"></div>
+    </section>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Hungry Matchmaker", kind: "helper", accent: "#fb5607" });
+
+    const R = [
+      ["🍳", "Fried rice", "day-old rice, eggs, soy sauce, any veg", 20], ["🥞", "Pancakes", "flour, milk, eggs, butter", 20], ["🍝", "Spaghetti aglio e olio", "spaghetti, garlic, olive oil, chili", 15],
+      ["🥚", "Shakshuka", "eggs, canned tomatoes, onion, peppers, spices", 30], ["🧀", "Grilled cheese", "bread, cheese, butter", 10], ["🥗", "Greek salad", "tomato, cucumber, feta, olives, onion", 10],
+      ["🍛", "Chickpea curry", "chickpeas, onion, garlic, curry spices, coconut milk or tomatoes", 35], ["🍜", "Instant ramen upgrade", "instant noodles, egg, scallion, soy sauce", 10], ["🌮", "Bean tacos", "tortillas, beans, cheese, salsa", 20],
+      ["🥘", "Risotto", "arborio rice, stock, onion, parmesan, butter, wine", 45], ["🍲", "Lentil soup", "lentils, onion, carrot, garlic, stock", 40], ["🥔", "Potato gratin", "potatoes, cream or milk, cheese, garlic", 75],
+      ["🍕", "Pan pizza", "flour, yeast, tomato sauce, cheese", 60], ["🥙", "Falafel wraps", "chickpeas, herbs, flour, flatbread, tahini", 45], ["🍗", "Roast chicken", "whole chicken, lemon, garlic, butter", 90],
+      ["🐟", "Fish tacos", "white fish, tortillas, cabbage, lime", 25], ["🥩", "Steak and fries", "steak, potatoes, butter", 40], ["🍔", "Smash burgers", "ground beef, buns, cheese, onion", 20],
+      ["🥦", "Broccoli stir fry", "broccoli, garlic, soy sauce, ginger", 15], ["🍠", "Sweet potato bowl", "sweet potato, beans, rice, avocado", 40], ["🥑", "Guacamole on toast", "avocado, bread, lime, chili", 10],
+      ["🍤", "Garlic shrimp", "shrimp, garlic, butter, lemon, parsley", 15], ["🍚", "Mushroom rice", "rice, mushrooms, onion, butter, soy", 30], ["🥣", "Overnight oats", "oats, milk, fruit", 5],
+      ["🧆", "Veggie fritters", "flour, eggs, grated vegetables", 25], ["🍳", "Frittata", "eggs, cheese, any vegetables", 25], ["🥧", "Quiche", "pastry or flour and butter, eggs, milk, cheese", 70],
+      ["🌯", "Burritos", "tortillas, rice, beans, cheese, salsa", 25], ["🍝", "Carbonara", "spaghetti, eggs, pecorino or parmesan, bacon or guanciale", 20], ["🍝", "Mac and cheese", "pasta, cheddar, milk, butter, flour", 30],
+      ["🥬", "Caesar salad", "romaine, parmesan, croutons, egg or mayo, lemon", 15], ["🍅", "Tomato soup", "canned tomatoes, onion, garlic, cream", 30], ["🥟", "Dumplings", "flour, ground pork or veg, cabbage, ginger", 90],
+      ["🍱", "Teriyaki salmon", "salmon, soy sauce, sugar, rice", 25], ["🍖", "Pulled pork", "pork shoulder, bbq sauce, buns", 360], ["🫓", "Flatbread", "flour, yogurt, salt", 20],
+      ["🍌", "Banana bread", "bananas, flour, eggs, butter, sugar", 70], ["🍪", "Chocolate chip cookies", "flour, butter, sugar, eggs, chocolate", 30], ["🍮", "Flan", "eggs, milk, sugar", 60],
+      ["🥭", "Mango lassi", "mango, yogurt, milk", 5], ["🧇", "Waffles", "flour, milk, eggs, butter, waffle iron", 25], ["🍳", "Egg fried noodles", "noodles, eggs, soy sauce, veg", 15],
+      ["🥕", "Carrot ginger soup", "carrots, ginger, onion, stock", 35], ["🫛", "Pea and mint soup", "frozen peas, mint, onion, stock", 20], ["🍛", "Dal", "red lentils, onion, garlic, turmeric, cumin", 30],
+      ["🌶️", "Chili con carne", "ground beef, beans, tomatoes, chili, onion", 60], ["🥗", "Quinoa salad", "quinoa, cucumber, tomato, lemon, herbs", 25], ["🍜", "Pho", "beef bones, rice noodles, herbs, spices", 240],
+      ["🍣", "Sushi rolls", "sushi rice, nori, raw fish or veg, rice vinegar", 60], ["🧅", "French onion soup", "onions, beef stock, bread, gruyère", 75], ["🥐", "Croque monsieur", "bread, ham, cheese, butter, milk, flour", 25],
+      ["🥒", "Tzatziki and pita", "yogurt, cucumber, garlic, pita", 10], ["🍝", "Pesto pasta", "pasta, basil, pine nuts, parmesan, olive oil", 15], ["🥘", "Paella", "rice, saffron, seafood or chicken, peppers", 60],
+      ["🫘", "Feijoada", "black beans, pork cuts, sausage, rice, orange", 180], ["🧀", "Pão de queijo", "tapioca flour, eggs, milk, cheese", 40], ["🥞", "Crepes", "flour, milk, eggs, butter", 20],
+      ["🍳", "Omelette", "eggs, butter, cheese or herbs", 10], ["🥗", "Coleslaw", "cabbage, carrot, mayo, vinegar", 10], ["🍠", "Baked potato", "potato, butter, cheese, sour cream", 60],
+    ];
+    const MAGNETS = ["eggs", "rice", "pasta", "chicken", "tofu", "canned beans", "cheese", "tomatoes", "tortillas", "potatoes", "lemon", "yogurt"];
+    const $ = (id) => document.getElementById(id);
+    $("magnets").innerHTML = MAGNETS.map((m, i) => `<button style="--r:${(i % 3 - 1) * 3}deg">+ ${m}</button>`).join("");
+    $("magnets").onclick = (e) => { if (e.target.tagName === "BUTTON") $("fridge").value += `, ${e.target.textContent.slice(2)}`; };
+
+    function deck(scored) {
+      $("deck").innerHTML = (scored || R.map((r) => ({ r }))).map(({ r, cook, mood, diet, missing, score }) => {
+        const [emoji, name, needs, mins] = r;
+        const match = score != null && score >= 0.6;
+        const tags = score == null ? [] : [cook >= 0.6 ? "can make it" : missing?.length ? "shopping needed" : "missing stuff", mood >= 0.6 ? "fits the mood" : null, diet < 0.5 ? "diet clash" : null, mins > Number($("time").value) ? `${mins} min, too long` : `${mins} min`].filter(Boolean);
+        return `<article class="card ${score == null ? "" : match ? "match" : "nope"}"><div class="emoji">${emoji}</div>${score != null ? `<div class="heart">${Math.round(score * 100)}%</div>` : ""}<h3>${escapeHtml(name)}</h3><div class="need">${escapeHtml(needs)}</div><div class="tags">${tags.map((t) => `<span>${escapeHtml(t)}</span>`).join("")}</div></article>`;
+      }).join("");
+    }
+    deck();
+
+    $("go").onclick = async () => {
+      const fridge = $("fridge").value.trim();
+      if (!fridge) return;
+      $("go").disabled = true;
+      const q = {};
+      R.forEach(([, name, needs], i) => {
+        q[`r${i}_cook`] = { type: "noul", instructions: { recipe: name, needs, question: "Can `recipe` be cooked with what is in `fridge`, allowing for salt, oil, pepper, and water?" } };
+        q[`r${i}_mood`] = { type: "noul", instructions: { recipe: name, question: "Does `recipe` fit `mood`?" } };
+        q[`r${i}_diet`] = { type: "noul", instructions: { recipe: name, needs, question: "Does `recipe` fit the `diet`?" } };
+      });
+      try {
+        const r = await ask({ fridge, mood: $("mood").value, diet: $("diet").value }, q);
+        const maxMin = Number($("time").value);
+        const scored = R.map((rec, i) => {
+          const cook = r.answers[`r${i}_cook`].noul, mood = r.answers[`r${i}_mood`].noul, diet = r.answers[`r${i}_diet`].noul;
+          const timeOk = rec[3] <= maxMin ? 1 : 0.25;
+          return { r: rec, cook, mood, diet, score: cook * 0.55 + mood * 0.25 + timeOk * 0.2 - (diet < 0.5 ? 0.5 : 0) };
+        }).sort((a, b) => b.score - a.score);
+        const matches = scored.filter((s) => s.score >= 0.6).length;
+        $("title").textContent = matches ? `${matches} matches tonight` : "No perfect matches. Maybe order in?";
+        $("badge").innerHTML = badge(r);
+        $("stats").textContent = `${R.length} recipes × 3 questions = ${r.questions} decisions in ${Math.round(r.elapsed_ms)} ms.`;
+        deck(scored);
+      } catch (err) {
+        $("stats").innerHTML = `<span class="jx-error">${escapeHtml(err.message)}</span>`;
+      }
+      $("go").disabled = false;
+    };
+  </script>
+</body>
+</html>

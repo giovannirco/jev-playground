@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flimsy Alibi</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --desk: #3e4a3d; --manila: #e8cf8f; --manila-2: #f3e2b3; --paper: #fbf8ef; --ink: #22201c; --stamp-red: #c1121f; --stamp-green: #2d6a4f;
+      --jx-bg: var(--desk); --jx-ink: var(--ink); --jx-dim: #5f5a4e; --jx-line: #cdbb8a; --jx-panel: var(--paper); --jx-accent: #8ac926;
+      --jx-sans: "Courier Prime", monospace;
+    }
+    body { background: repeating-linear-gradient(45deg, #3e4a3d 0 3px, #3a4639 3px 6px); }
+    .jx-top { color: #eee; }
+    .folder { max-width: 1040px; margin: 30px auto 60px; padding: 0 16px; }
+    .tab { display: inline-block; background: var(--manila); padding: 10px 28px 8px; border-radius: 10px 10px 0 0; font: 400 16px "Special Elite"; margin-left: 24px; }
+    .inside { background: var(--manila); border-radius: 0 10px 10px 10px; padding: 22px; box-shadow: 0 18px 40px rgba(0,0,0,.4); display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; }
+    .sheet { background: var(--paper); padding: 22px 24px; box-shadow: 2px 3px 0 rgba(0,0,0,.15); position: relative; }
+    .sheet.clip::before { content: ""; position: absolute; top: -14px; left: 40px; width: 18px; height: 48px; border: 4px solid #9aa0a6; border-radius: 10px; }
+    h1 { font: 400 clamp(36px, 6vw, 58px)/1 "Special Elite"; margin: 4px 0 8px; }
+    .lede { color: var(--jx-dim); margin: 0 0 16px; }
+    label { display: block; font-weight: 700; margin: 12px 0 4px; }
+    select, textarea { width: 100%; font: 17px/1.45 "Courier Prime"; background: #fff; border: 1px solid #b9ae93; padding: 10px; }
+    textarea { min-height: 130px; background: repeating-linear-gradient(#fff 0 25px, #dfe8f5 25px 26px); line-height: 26px; padding-top: 4px; resize: vertical; }
+    .file { margin-top: 16px; background: var(--ink); color: var(--paper); border: 0; padding: 12px 22px; font: 400 18px "Special Elite"; }
+    .file:disabled { opacity: .6; }
+    .ex { font-size: 14px; margin-top: 8px; color: var(--jx-dim); }
+    .ex button { background: none; border: 0; padding: 0; text-decoration: underline; font: inherit; color: var(--ink); margin-right: 10px; }
+    .report { min-height: 360px; }
+    .report h2 { font: 400 22px "Special Elite"; margin: 0 0 10px; border-bottom: 2px solid var(--ink); padding-bottom: 6px; }
+    .stamp { position: absolute; right: 18px; top: 60px; font: 400 34px "Special Elite"; padding: 6px 14px; border: 5px solid currentColor; transform: rotate(-12deg); opacity: 0; mix-blend-mode: multiply; }
+    .stamp.show { animation: thud .35s cubic-bezier(.2,1.6,.4,1) forwards; }
+    @keyframes thud { from { opacity: 0; transform: rotate(-12deg) scale(2.2); } to { opacity: .88; transform: rotate(-12deg) scale(1); } }
+    .grade { font: 400 88px/1 "Special Elite"; }
+    .line { display: grid; grid-template-columns: 150px 1fr 48px; gap: 8px; align-items: center; margin: 7px 0; font-size: 15px; }
+    .line .t { height: 10px; background: #e7e0cc; }
+    .line .t span { display: block; height: 100%; background: var(--ink); }
+    .flags { margin-top: 12px; font-size: 15px; }
+    .flags li { margin-bottom: 4px; }
+    .board { grid-column: 1 / -1; }
+    .board table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .board td, .board th { border-bottom: 1px dotted #b9ae93; padding: 6px 4px; text-align: left; vertical-align: top; }
+    @media (max-width: 860px) { .inside { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="folder">
+    <div class="tab">CASE FILE #<span id="caseno">0417</span></div>
+    <div class="inside">
+      <div class="sheet clip">
+        <h1>Flimsy Alibi</h1>
+        <p class="lede">The Alibi Laboratory tests excuses before you use them. File your story, pick who has to believe it, and the lab runs every forensic test in one pass.</p>
+        <label for="sit">The incident</label>
+        <select id="sit">
+          <option>Arrived 40 minutes late to work</option>
+          <option>Missed an important meeting entirely</option>
+          <option>Forgot a partner's birthday</option>
+          <option>Did not submit the homework</option>
+          <option>Skipped a friend's party</option>
+          <option>Deployed to production on a Friday and broke it</option>
+        </select>
+        <label for="aud">Who must believe it</label>
+        <select id="aud">
+          <option value="a strict, detail-oriented boss who has heard every excuse">Strict boss</option>
+          <option value="a relaxed boss who mostly cares that the work gets done">Chill boss</option>
+          <option value="a loving but suspicious partner">Partner</option>
+          <option value="a skeptical high school teacher">Teacher</option>
+          <option value="a grandmother who believes everything">Grandma</option>
+        </select>
+        <label for="alibi">Your statement</label>
+        <textarea id="alibi">A goose blocked the only exit of my parking garage and I had to wait for animal control. I have a blurry photo.</textarea>
+        <div class="ex">Examples:
+          <button data-x="The train stopped for 30 minutes between stations because of a signal failure. You can check the transit company's status page.">train</button>
+          <button data-x="My alarm didn't go off because my phone updated overnight and reset all my alarms.">phone update</button>
+          <button data-x="I was abducted by aliens, but they were very polite and dropped me off right outside.">aliens</button>
+          <button data-x="My dog ate my car keys. Well, not ate. Buried. In the neighbor's garden. With the neighbor watching.">dog</button>
+        </div>
+        <button class="file" id="file">Submit to the lab</button>
+      </div>
+      <div class="sheet report">
+        <h2>Lab report</h2>
+        <div class="stamp" id="stamp"></div>
+        <div id="report"><p class="jx-muted">No evidence analyzed yet.</p></div>
+      </div>
+      <div class="sheet board">
+        <h2 style="font:400 22px 'Special Elite';margin:0 0 8px">Hall of flimsy fame (this browser)</h2>
+        <div id="board"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Flimsy Alibi", kind: "silly", accent: "#8ac926" });
+    const $ = (id) => document.getElementById(id);
+    $("caseno").textContent = String(Math.floor(1000 + Math.random() * 9000));
+    document.querySelectorAll(".ex button").forEach((b) => (b.onclick = () => ($("alibi").value = b.dataset.x)));
+
+    const KEY = "flimsy-alibi-board";
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+    const save = (rows) => { try { localStorage.setItem(KEY, JSON.stringify(rows.slice(0, 12))); } catch {} };
+    function board() {
+      const rows = load();
+      $("board").innerHTML = rows.length
+        ? `<table><tr><th>Grade</th><th>Statement</th><th>Audience</th><th>Verdict</th></tr>${rows.map((r) => `<tr><td><b>${r.grade}</b></td><td>${escapeHtml(r.alibi)}</td><td>${escapeHtml(r.aud)}</td><td>${r.ok ? "accepted" : "rejected"}</td></tr>`).join("")}</table>`
+        : `<p class="jx-muted">Your best and worst alibis will be kept here, in this browser only.</p>`;
+    }
+    board();
+
+    const line = (label, v, max = 1) => `<div class="line"><span>${label}</span><span class="t"><span style="width:${(v / max) * 100}%"></span></span><span>${max === 1 ? Math.round(v * 100) + "%" : v.toFixed(1)}</span></div>`;
+
+    $("file").onclick = async () => {
+      const alibi = $("alibi").value.trim();
+      if (!alibi) return;
+      const audienceLabel = $("aud").selectedOptions[0].textContent;
+      $("file").disabled = true;
+      $("stamp").className = "stamp";
+      try {
+        const r = await ask({ incident: $("sit").value, audience: $("aud").value, excuse: alibi }, {
+          believable: { type: "score", instructions: "How believable is the `excuse` for the `incident`?", criteria: ["obviously made up", "hard to believe", "plausible", "very believable", "airtight"] },
+          original: { type: "score", instructions: "How original is the `excuse`?", criteria: ["the most common excuse there is", "familiar", "a bit unusual", "memorable", "never heard anything like it"] },
+          detail: { type: "score", instructions: "How much specific detail does the `excuse` give?", criteria: ["none", "a little", "a reasonable amount", "suspiciously much"] },
+          verifiable: { type: "noul", instructions: "Could the `audience` easily check whether the `excuse` is true?" },
+          evidence: { type: "noul", instructions: "Does the `excuse` offer any evidence or proof?" },
+          blame: { type: "noul", instructions: "Does the `excuse` blame someone or something else?" },
+          animal: { type: "noul", instructions: "Does an animal play a part in the `excuse`?" },
+          accept: { type: "noul", instructions: "Would the `audience` accept the `excuse` and let it go?" },
+          apology: { type: "noul", instructions: "Does the `excuse` include an apology?" },
+        });
+        const A = r.answers;
+        const composite = A.believable.score / 4 * 0.45 + A.accept.noul * 0.35 + A.original.score / 4 * 0.2;
+        const grade = composite > 0.8 ? "A" : composite > 0.65 ? "B" : composite > 0.5 ? "C" : composite > 0.35 ? "D" : "F";
+        const ok = A.accept.noul >= 0.5;
+        const flags = [];
+        if (A.detail.score > 2.3) flags.push("Suspiciously detailed. Liars over-explain.");
+        if (A.verifiable.noul > 0.6 && A.believable.score < 2) flags.push("Easily checked, and not very believable. Dangerous combination.");
+        if (A.animal.noul > 0.6) flags.push("An animal is involved. Juries love animals.");
+        if (A.blame.noul > 0.7) flags.push("Blames someone else. Expect follow-up questions.");
+        if (A.evidence.noul > 0.6) flags.push("Evidence offered. Make sure it exists.");
+        if (A.apology.noul < 0.3) flags.push("No apology. Consider adding one.");
+        $("stamp").textContent = ok ? "ACCEPTED" : "REJECTED";
+        $("stamp").style.color = ok ? "var(--stamp-green)" : "var(--stamp-red)";
+        void $("stamp").offsetWidth;
+        $("stamp").classList.add("show");
+        $("report").innerHTML = `<div class="grade">${grade}</div>
+          ${line("Believability", A.believable.score, 4)}${line("Originality", A.original.score, 4)}${line("Detail", A.detail.score, 3)}
+          ${line("Verifiable", A.verifiable.noul)}${line("Evidence", A.evidence.noul)}${line(escapeHtml(audienceLabel) + " buys it", A.accept.noul)}
+          <ul class="flags">${flags.map((f) => `<li>${f}</li>`).join("")}</ul>${badge(r)}`;
+        save([{ grade, alibi: alibi.slice(0, 140), aud: audienceLabel, ok, c: composite }, ...load()].sort((a, b) => b.c - a.c));
+        board();
+      } catch (err) {
+        $("report").innerHTML = `<p class="jx-error">${escapeHtml(err.message)}</p>`;
+      }
+      $("file").disabled = false;
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fickle Dungeon</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      --stone: #1c1b1a; --stone-2: #262422; --moss: #2ec4b6; --torch: #ffb347; --blood: #c8453a; --bone: #e9dfc9;
+      --jx-bg: var(--stone); --jx-accent: var(--torch); --jx-panel: #24211e; --jx-line: #3b3631; --jx-dim: #b3a58d; --jx-ink: var(--bone);
+      --jx-sans: "Alegreya Sans", system-ui, sans-serif;
+    }
+    body {
+      background:
+        radial-gradient(600px 420px at 18% 12%, rgba(255,179,71,.13), transparent 70%),
+        radial-gradient(500px 400px at 90% 80%, rgba(46,196,182,.07), transparent 70%),
+        repeating-linear-gradient(0deg, transparent 0 46px, rgba(0,0,0,.25) 46px 48px),
+        repeating-linear-gradient(90deg, transparent 0 92px, rgba(0,0,0,.18) 92px 94px),
+        var(--stone);
+      animation: flicker 5s infinite;
+    }
+    @keyframes flicker { 0%,100% { background-color: var(--stone); } 48% { background-color: #1f1d1b; } 52% { background-color: #1a1918; } }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+    h1 { font: 400 clamp(42px, 7vw, 76px)/1 "IM Fell English SC", serif; color: var(--torch); margin: 10px 0 4px; text-shadow: 0 0 22px rgba(255,179,71,.35); }
+    .lede { color: var(--jx-dim); margin: 0 0 18px; max-width: 60ch; }
+    .scroll { background: rgba(0,0,0,.28); border: 1px solid var(--jx-line); border-radius: 8px; padding: 18px 20px; height: 56vh; min-height: 360px; overflow-y: auto; font: 20px/1.5 "IM Fell English", serif; }
+    .scroll p { margin: 0 0 14px; }
+    .scroll .you { color: var(--moss); font-style: italic; }
+    .scroll .you::before { content: "› "; }
+    .scroll .room { color: var(--torch); font-family: "IM Fell English SC"; font-size: 24px; margin-top: 18px; }
+    .scroll .roll { font: 500 14px "Alegreya Sans"; color: var(--jx-dim); }
+    .scroll .bad { color: #ff8f84; }
+    .scroll .good { color: #ffe0a3; }
+    form { display: flex; gap: 8px; margin-top: 12px; }
+    form input { flex: 1; font: 20px "IM Fell English", serif; background: #12110f; border: 1px solid var(--jx-line); border-radius: 8px; padding: 12px 14px; color: var(--bone); }
+    form input:focus { outline: none; border-color: var(--torch); }
+    form button { background: var(--torch); border: 0; border-radius: 8px; padding: 0 18px; font: 700 16px "Alegreya Sans"; color: var(--stone); }
+    .hint { color: var(--jx-dim); font-size: 14px; margin-top: 8px; }
+    aside h2 { font: 400 24px "IM Fell English SC"; color: var(--torch); margin: 18px 0 8px; }
+    .hearts { font-size: 28px; letter-spacing: 4px; color: var(--blood); }
+    .inv { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .inv li { border: 1px solid var(--jx-line); border-radius: 6px; padding: 3px 8px; font-size: 14px; }
+    .ledger { font-size: 13px; }
+    .ledger h3 { font: 700 12px "Alegreya Sans"; color: var(--jx-dim); margin: 12px 0 6px; letter-spacing: .04em; }
+    .dm { font-size: 13px; color: var(--jx-dim); }
+    @media (max-width: 880px) { .wrap { grid-template-columns: 1fr; } .scroll { height: 50vh; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main>
+      <h1>Fickle Dungeon</h1>
+      <p class="lede">There's no parser and no verb list. Type anything. Jev decides what kind of move it was, how clever it was, and whether it could physically work in this room. Then the dice have their say.</p>
+      <div class="scroll" id="scroll" aria-live="polite"></div>
+      <form id="form" autocomplete="off">
+        <input id="act" placeholder="What do you do?" aria-label="Your action">
+        <button>Act</button>
+      </form>
+      <p class="hint">Try anything: “pry the loose brick with the spoon”, “sing the guard a lullaby”, “lick the wall”.</p>
+    </main>
+    <aside>
+      <h2>Health</h2>
+      <div class="hearts" id="hearts"></div>
+      <h2>Satchel</h2>
+      <ul class="inv" id="inv"></ul>
+      <h2>The dungeon master's ledger</h2>
+      <div class="ledger" id="ledger"><p class="dm">After your first move, this shows exactly what Jev decided and the odds the dice rolled against.</p></div>
+    </aside>
+  </div>
+  <script type="module">
+    import { ask, chrome, bars, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Fickle Dungeon", kind: "game", accent: "#ffb347" });
+
+    const ROOMS = {
+      cell: {
+        name: "The Damp Cell",
+        text: "You wake on cold straw in a stone cell. A rusty spoon lies by a bowl of grey soup. One brick near the floor is loose. Through the barred iron door you can see a guard snoring on a stool, a ring of keys hanging from his belt, just out of reach.",
+        objects: ["straw pile", "rusty spoon", "bowl of soup", "loose brick", "iron door", "sleeping guard", "key ring"],
+        checks: {
+          dig: "Does the player try to dig, pry, or scrape at the loose brick or wall?",
+          keys: "Does the player try to reach, hook, or steal the guard's keys?",
+          trick: "Does the player try to trick, lure, or talk the guard into opening the door?",
+          door: "Does the player try to force, break, or pick the iron door directly?",
+        },
+        resolve(a, g, roll) {
+          if (a.dig > 0.6 && (g.inv.has("rusty spoon") || a.clever >= 2)) return roll(0.75) ? ["good", "Scrape, scrape, scrape. The brick slides free and behind it is a crawlspace that smells of rain. You squeeze through.", () => go("bridge")] : ["", "The brick shifts a finger's width. Your hands ache. Another try might do it.", () => g.inv.add("rusty spoon")];
+          if (a.keys > 0.6) return roll(g.inv.has("straw pile") ? 0.7 : 0.35) ? ["good", "With painful patience you snag the key ring. The guard mumbles something about his mother and keeps snoring. The door creaks open.", () => { g.inv.add("key ring"); go("bridge"); }] : ["bad", "The keys jangle. The guard snorts awake just long enough to whack your fingers with a spoon of his own.", () => hurt()];
+          if (a.trick > 0.6) return roll(0.2 + a.clever * 0.15) ? ["good", "Somehow the guard believes you, and he's so embarrassed he unlocks the door and wanders off to think about his choices.", () => go("bridge")] : ["bad", "The guard opens one eye, says “no”, and closes it again.", null];
+          if (a.door > 0.6) return ["bad", "The iron door is iron. Your shoulder is not. It will be purple tomorrow.", () => hurt()];
+          return null;
+        },
+      },
+      bridge: {
+        name: "The Troll's Bridge",
+        text: "A narrow stone bridge crosses a chasm that hums with wind. In the middle sits a troll wearing a tiny crown of dandelions. A sign says TOLL: SOMETHING NICE. Across the bridge, a doorway glows with mirrored light.",
+        objects: ["stone bridge", "chasm", "troll", "dandelion crown", "sign", "glowing doorway"],
+        checks: {
+          gift: "Does the player offer the troll a gift, food, or an item?",
+          kind: "Does the player compliment, flatter, befriend, or say something kind to the troll?",
+          fight: "Does the player attack or threaten the troll?",
+          sneak: "Does the player try to sneak, climb, or jump past the troll without paying?",
+        },
+        resolve(a, g, roll) {
+          if (a.kind > 0.6) return roll(0.55 + a.clever * 0.1) ? ["good", "The troll's eyes fill with enormous tears. “No one ever notices the crown,” he sniffs, and he waves you across.", () => go("mirror")] : ["", "The troll squints. “Sounds rehearsed.” Try meaning it.", null];
+          if (a.gift > 0.6 && g.inv.size) {
+            const item = [...g.inv][0];
+            return ["good", `You hand over the ${item}. The troll turns it over lovingly, tucks it into his crown, and steps aside.`, () => { g.inv.delete(item); go("mirror"); }];
+          }
+          if (a.gift > 0.6) return ["", "You pat your empty pockets. The troll pats his empty pockets too, in solidarity. He does not move.", null];
+          if (a.fight > 0.6) return roll(0.1 + a.clever * 0.08) ? ["good", "Against all sense, it works. The troll yelps and flees into the chasm's mist.", () => go("mirror")] : ["bad", "The troll flicks you, gently, the way you'd flick a crumb. You fly a very long way before landing.", () => hurt()];
+          if (a.sneak > 0.6) return roll(0.25 + a.clever * 0.1) ? ["good", "You edge along the outside of the railing while the troll is busy counting dandelions. Across!", () => go("mirror")] : ["bad", "Your foot slips. You dangle over the chasm until the troll lifts you back by the collar, disappointed.", () => hurt()];
+          return null;
+        },
+      },
+      mirror: {
+        name: "The Hall of One Mirror",
+        text: "A round hall with one tall mirror. Your reflection is already inside it, smiling a little too wide, and it repeats everything you do half a second early. A door on the far side has no handle, only a carved eye.",
+        objects: ["tall mirror", "your reflection", "handle-less door", "carved eye"],
+        checks: {
+          still: "Does the player do nothing, stand still, close their eyes, or refuse to act?",
+          cover: "Does the player cover, turn, or look away from the mirror?",
+          smash: "Does the player try to break or attack the mirror?",
+          talk: "Does the player speak to the reflection?",
+        },
+        resolve(a, g, roll) {
+          if (a.still > 0.55 || a.cover > 0.6) return ["good", "The reflection, with nothing to copy, gets bored. It yawns, then wanders out of the frame. The carved eye on the door blinks, and the door swings open.", () => go("hoard")];
+          if (a.smash > 0.6) return ["bad", "You swing. Your reflection swings first. Somehow you're the one who gets hit.", () => hurt()];
+          if (a.talk > 0.6) return roll(0.3 + a.clever * 0.1) ? ["good", "You say something the reflection can't copy: a secret. It covers its mouth, mortified, and steps aside.", () => go("hoard")] : ["", "The reflection mouths your words back before you finish saying them. Unsettling.", null];
+          return null;
+        },
+      },
+      hoard: {
+        name: "The Dragon's Hoard",
+        text: "Gold everywhere. A dragon the size of a barn sleeps on it, snoring smoke. On a pedestal by its nose sits the Crown of Morning, your way out of here. One wrong sound will wake it.",
+        objects: ["gold pile", "sleeping dragon", "pedestal", "Crown of Morning"],
+        checks: {
+          sneak: "Does the player quietly sneak toward or carefully take the crown?",
+          loud: "Would this action make a loud noise?",
+          fight: "Does the player attack the dragon?",
+          talk: "Does the player wake or talk to the dragon on purpose?",
+        },
+        resolve(a, g, roll) {
+          if (a.fight > 0.6) return roll(0.05 + a.clever * 0.05) ? ["good", "Legends will be sung about this, because nobody will believe it. The dragon faints. You take the crown.", () => victory()] : ["bad", "The dragon opens one eye. That's the whole fight.", () => { hurt(); hurt(); }];
+          if (a.loud > 0.65) return ["bad", "Clang. The dragon's eye slides open and a tongue of fire licks the ceiling above you.", () => hurt()];
+          if (a.sneak > 0.6) return roll(0.45 + a.clever * 0.12) ? ["good", "Toe, heel, toe, heel. Your fingers close on the crown. The dragon sighs in its sleep and rolls over onto a different mountain of coins.", () => victory()] : ["bad", "A single coin tinkles down the pile. The dragon sneezes fire in its sleep, and your eyebrows are gone.", () => hurt()];
+          if (a.talk > 0.6) return roll(0.2 + a.clever * 0.15) ? ["good", "The dragon wakes, listens, and laughs so hard it cries molten gold. “Take it,” it wheezes. “Nobody's been this interesting in a century.”", () => victory()] : ["bad", "The dragon wakes and is not charmed.", () => hurt()];
+          return null;
+        },
+      },
+    };
+
+    const INTENTS = {
+      move: "go somewhere, walk, run, climb, leave",
+      examine: "look at, inspect, search, smell, listen",
+      take: "pick up or grab an object",
+      use: "use an object on something",
+      attack: "hit, fight, break, threaten",
+      sneak: "sneak, hide, move silently",
+      talk: "speak, sing, shout, persuade, lie",
+      wait: "wait, rest, do nothing, meditate",
+      nonsense: "something absurd or impossible",
+    };
+
+    const g = { room: "cell", hp: 3, inv: new Set(), turns: 0, over: false };
+    const $ = (id) => document.getElementById(id);
+    const scroll = $("scroll");
+    const say = (html, cls = "") => { scroll.insertAdjacentHTML("beforeend", `<p class="${cls}">${html}</p>`); scroll.scrollTop = scroll.scrollHeight; };
+
+    function status() {
+      $("hearts").textContent = "♥".repeat(Math.max(0, g.hp)) + "♡".repeat(Math.max(0, 3 - g.hp));
+      $("inv").innerHTML = g.inv.size ? [...g.inv].map((i) => `<li>${escapeHtml(i)}</li>`).join("") : `<li style="border:0;color:var(--jx-dim)">empty</li>`;
+    }
+    function go(room) { g.room = room; const r = ROOMS[room]; say(r.name, "room"); say(r.text); }
+    function hurt() {
+      g.hp -= 1;
+      status();
+      if (g.hp <= 0) { g.over = true; say("The torches gutter out. Your adventure ends here. Reload the page to wake up in the cell again.", "bad"); }
+    }
+    function victory() { g.over = true; say(`You lift the Crown of Morning, and daylight pours through the stones. You escaped in ${g.turns} moves.`, "good"); }
+
+    async function act(text) {
+      const room = ROOMS[g.room];
+      const state = {
+        room: room.name,
+        description: room.text,
+        objects_here: room.objects,
+        satchel: [...g.inv],
+        player_action: text,
+      };
+      const questions = {
+        intent: { type: "choice", instructions: "What kind of action is `player_action`?", criteria: INTENTS },
+        target: { type: "choice", instructions: "Which thing in `objects_here` or `satchel` does `player_action` mainly involve?", criteria: Object.fromEntries([...room.objects, ...g.inv, "nothing in particular"].map((o) => [o, null])) },
+        clever: { type: "score", instructions: "How clever or creative is `player_action` for this situation?", criteria: ["reckless or pointless", "ordinary", "sensible", "clever", "brilliant"] },
+        plausible: { type: "noul", instructions: "Could `player_action` physically work in this room with these objects?" },
+      };
+      for (const [k, v] of Object.entries(room.checks)) questions[`c_${k}`] = { type: "noul", instructions: v.replace("the player", "`player_action`").replace("this action", "`player_action`") };
+      const r = await ask(state, questions);
+      const A = r.answers;
+      const a = { clever: A.clever.score, plausible: A.plausible.noul };
+      for (const k of Object.keys(room.checks)) a[k] = A[`c_${k}`].noul;
+      const rolls = [];
+      const roll = (p) => { const chance = Math.max(0.03, Math.min(0.97, p * (0.6 + 0.4 * a.plausible))); const d = Math.random(); rolls.push([chance, d]); return d < chance; };
+      ledger(r, room, a, rolls);
+      return { A, a, roll, room };
+    }
+
+    function ledger(r, room, a, rolls) {
+      const checks = Object.entries(room.checks).map(([k, q]) => `<div class="jx-row${a[k] > 0.6 ? " on" : ""}"><span class="jx-name" title="${escapeHtml(q)}">${k}</span><span class="jx-track"><span style="width:${a[k] * 100}%"></span></span><span class="jx-pct">${Math.round(a[k] * 100)}%</span></div>`).join("");
+      setTimeout(() => {
+        const dice = rolls.map(([c, d]) => `<p class="dm">🎲 needed under ${Math.round(c * 100)}, rolled ${Math.round(d * 100)}: ${d < c ? "success" : "failure"}</p>`).join("");
+        $("ledger").innerHTML = `${badge(r)}
+          <h3>What kind of move</h3>${bars(r.answers.intent, { limit: 3 })}
+          <h3>Aimed at</h3>${bars(r.answers.target, { limit: 3 })}
+          <h3>How clever: ${r.answers.clever.score.toFixed(2)} of 4</h3>${bars(r.answers.clever)}
+          <h3>Could it physically work</h3>${bars(r.answers.plausible)}
+          <h3>Room checks</h3><div class="jx-bars">${checks}</div>${dice}`;
+      }, 0);
+    }
+
+    const FALLBACK = {
+      move: "You walk in a small, determined circle. There's nowhere to go that way.",
+      examine: null,
+      take: "You reach for it, but it's either nailed down, too heavy, or already somebody else's.",
+      use: "Nothing obvious happens. The dungeon waits for something better.",
+      attack: "You swing at the air. The air takes it personally, but nothing else does.",
+      sneak: "You sneak magnificently, but toward nothing in particular.",
+      talk: "Your voice echoes off the stones. Nobody answers, except maybe a rat.",
+      wait: "You wait. Water drips. Time passes. Nothing changes.",
+      nonsense: "The dungeon stares at you. The dungeon has seen many things, and this is a new one.",
+    };
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (g.over) return;
+      const input = $("act");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      input.disabled = true;
+      say(escapeHtml(text), "you");
+      try {
+        const { A, a, roll, room } = await act(text);
+        g.turns += 1;
+        const outcome = room.resolve(a, g, roll);
+        if (outcome) {
+          const [cls, line, fx] = outcome;
+          say(line, cls);
+          if (fx) fx();
+        } else {
+          const intent = A.intent.choice;
+          const target = A.target.choice;
+          if (intent === "take" && target !== "nothing in particular" && /spoon|straw|dandelion|coin|gold/.test(target) && a.plausible > 0.5) {
+            const item = target === "gold pile" ? "a gold coin" : target;
+            g.inv.add(item);
+            say(`You take the ${item}.`, "good");
+          } else if (intent === "examine") {
+            say(target === "nothing in particular" ? room.text : `You study the ${target} closely. It's exactly as described, but somehow more so. Maybe it's useful.`);
+          } else {
+            say(FALLBACK[intent]);
+          }
+        }
+        status();
+      } catch (err) {
+        say(`<span class="jx-error">${escapeHtml(err.message)}</span>`);
+      }
+      input.disabled = false;
+      input.focus();
+    });
+
+    status();
+    go("cell");
+  </script>
+</body>
+</html>

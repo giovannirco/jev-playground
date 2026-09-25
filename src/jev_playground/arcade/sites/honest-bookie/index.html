@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Honest Bookie</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      --turf: #0f3d2e; --turf-2: #145239; --chalk: #f4f1e8; --chalk-dim: #b9c9bd; --rose: #ff6f91; --mint: #06d6a0; --gold: #ffd166;
+      --jx-bg: var(--turf); --jx-accent: var(--mint); --jx-panel: #134a37; --jx-line: #2b6b52; --jx-dim: var(--chalk-dim); --jx-ink: var(--chalk);
+      --jx-sans: "Oswald", sans-serif;
+    }
+    body { background: radial-gradient(circle at 30% 20%, #1a5a43, var(--turf) 70%); }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+    h1 { font: 700 clamp(46px, 8vw, 90px)/.95 "Oswald"; margin: 10px 0 4px; letter-spacing: -.01em; color: var(--chalk); }
+    .lede { font: 400 20px/1.45 "Kalam", cursive; color: var(--chalk-dim); max-width: 60ch; margin: 0 0 22px; }
+    .board { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+    .book { background: #0b2d22; border: 3px solid #0a241b; border-radius: 8px; padding: 14px 18px; font-family: "Kalam", cursive; }
+    .book h2 { margin: 0; font: 600 14px "Oswald"; color: var(--chalk-dim); letter-spacing: .04em; }
+    .book b { font: 700 46px/1.1 "Oswald"; display: block; }
+    .book.you b { color: var(--gold); }
+    .book.jev b { color: var(--mint); }
+    .book small { color: var(--chalk-dim); font-size: 15px; }
+    .ticket { background: var(--chalk); color: #1b1b1b; border-radius: 6px; padding: 24px; position: relative; box-shadow: 0 16px 30px rgba(0,0,0,.3); }
+    .ticket::before, .ticket::after { content: ""; position: absolute; top: 50%; width: 22px; height: 22px; background: var(--turf); border-radius: 50%; transform: translateY(-50%); }
+    .ticket::before { left: -11px; } .ticket::after { right: -11px; }
+    .ticket .n { font: 600 14px "Oswald"; color: #8a8a8a; }
+    .claim { font: 700 clamp(22px, 3.2vw, 32px)/1.2 "Oswald"; margin: 8px 0 18px; }
+    .slider { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; font: 600 15px "Oswald"; }
+    .slider input { width: 100%; accent-color: #1b1b1b; height: 28px; }
+    .odds { text-align: center; font: 700 56px/1 "Oswald"; margin: 10px 0; }
+    .odds small { display: block; font: 400 16px "Kalam"; color: #666; }
+    .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .row button { font: 600 18px "Oswald"; border: 0; border-radius: 6px; padding: 12px 22px; background: #1b1b1b; color: var(--chalk); }
+    .row button.alt { background: transparent; color: #1b1b1b; border: 2px solid #1b1b1b; }
+    .row button:disabled { opacity: .45; }
+    .reveal { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; font-family: "Oswald"; }
+    .reveal div { background: #ece7da; border-radius: 6px; padding: 10px; }
+    .reveal b { display: block; font-size: 28px; }
+    .reveal .truth b.t { color: #0a7f5a; } .reveal .truth b.f { color: #c0392b; }
+    .history { margin-top: 26px; font-family: "Kalam", cursive; font-size: 17px; }
+    .history table { width: 100%; border-collapse: collapse; }
+    .history td, .history th { padding: 6px 8px; border-bottom: 1px dashed #2b6b52; text-align: left; }
+    .history th { font: 600 13px "Oswald"; color: var(--chalk-dim); }
+    .history .num { text-align: right; font-family: "Oswald"; }
+    .win { color: var(--gold); } .lose { color: var(--chalk-dim); }
+    .final { margin-top: 18px; background: #0b2d22; border-radius: 8px; padding: 18px; font: 22px/1.4 "Kalam"; }
+    @media (max-width: 640px) { .reveal { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Honest Bookie</h1>
+    <p class="lede">Ten claims. For each one, set the odds that it's true. Jev sets its own odds too, all ten sealed in one call before you see a single claim. Whoever is better calibrated, not just more often right, wins. The scoring is Brier, so confident and wrong costs a lot.</p>
+    <div class="board">
+      <div class="book you"><h2>Your purse</h2><b id="you">0</b><small id="you-sub">points</small></div>
+      <div class="book jev"><h2>Jev's purse</h2><b id="jev">0</b><small id="jev-sub">points</small></div>
+    </div>
+    <div class="ticket" id="ticket">
+      <div class="n" id="n">Ten claims, one sealed envelope</div>
+      <div class="claim" id="claim">Press Deal. Jev writes its odds on all ten claims first, and you'll see them only after you place each bet.</div>
+      <div id="controls"><div class="row"><button id="deal">Deal ten claims</button></div></div>
+      <div id="reveal"></div>
+    </div>
+    <div class="history" id="history"></div>
+  </div>
+  <script type="module">
+    import { ask, chrome, shuffle, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Honest Bookie", kind: "game", accent: "#06d6a0" });
+
+    const CLAIMS = [
+      ["Honey stored sealed can stay edible for thousands of years.", true],
+      ["The Great Wall of China is visible from the Moon with the naked eye.", false],
+      ["Octopuses have three hearts.", true],
+      ["Bananas are berries, botanically speaking.", true],
+      ["Strawberries are berries, botanically speaking.", false],
+      ["Mount Everest is the tallest mountain on Earth measured from base to peak.", false],
+      ["Venus spins in the opposite direction to most planets.", true],
+      ["A group of flamingos is called a flamboyance.", true],
+      ["Lightning never strikes the same place twice.", false],
+      ["The Eiffel Tower is noticeably taller in summer than in winter.", true],
+      ["Goldfish have a memory span of only about three seconds.", false],
+      ["Australia is wider than the Moon.", true],
+      ["Napoleon was unusually short for a Frenchman of his time.", false],
+      ["Cleopatra lived closer in time to the Moon landing than to the building of the Great Pyramid.", true],
+      ["Oxford University is older than the Aztec Empire.", true],
+      ["A day on Venus is longer than a year on Venus.", true],
+      ["Bats are blind.", false],
+      ["Brazil shares a border with Chile.", false],
+      ["Sloths can hold their breath longer than dolphins.", true],
+      ["Pure water is a good conductor of electricity.", false],
+      ["Wombat droppings are cube-shaped.", true],
+      ["Babies are born with more bones than adults have.", true],
+      ["The Sahara is the largest desert on Earth.", false],
+      ["Old windows are thicker at the bottom because glass slowly flows.", false],
+      ["Scotland's national animal is the unicorn.", true],
+      ["There are more possible chess games than atoms in the observable universe.", true],
+      ["Humans only use about 10% of their brains.", false],
+      ["Peanuts are nuts, botanically speaking.", false],
+      ["The Amazon River flows into the Pacific Ocean.", false],
+      ["Nintendo was founded before the Titanic sank.", true],
+      ["Sound travels faster in water than in air.", true],
+      ["Koalas are a kind of bear.", false],
+      ["The shortest recorded war lasted less than an hour.", true],
+      ["Mercury is the hottest planet in the Solar System.", false],
+      ["An ostrich's eye is bigger than its brain.", true],
+      ["The fax machine was invented before the telephone.", true],
+      ["Vikings wore horned helmets into battle.", false],
+      ["The Atlantic Ocean is, on average, saltier than the Pacific.", true],
+      ["Pluto is smaller across than the United States is wide.", true],
+      ["Chameleons change color mainly to match their background.", false],
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    let deck = [], jevOdds = [], i = 0, you = 0, jev = 0, rows = [], call = null;
+    const points = (p, truth) => Math.round(100 * (1 - (p - (truth ? 1 : 0)) ** 2));
+
+    $("controls").addEventListener("click", async (e) => {
+      if (e.target.id === "deal") return deal();
+      if (e.target.id === "bet") return bet();
+      if (e.target.id === "nextc") return next();
+    });
+
+    async function deal() {
+      deck = shuffle(CLAIMS).slice(0, 10);
+      i = 0; you = 0; jev = 0; rows = [];
+      $("you").textContent = 0; $("jev").textContent = 0; $("history").innerHTML = ""; $("reveal").innerHTML = "";
+      $("claim").textContent = "Jev is writing its odds…";
+      $("controls").innerHTML = "";
+      try {
+        call = await ask(
+          { claims: deck.map(([c]) => c) },
+          Object.fromEntries(deck.map(([c], k) => [`c${k}`, { type: "noul", instructions: { claim: c, question: "Is `claim` true?" } }])),
+        );
+        jevOdds = deck.map((_, k) => call.answers[`c${k}`].noul);
+        $("n").textContent = `Jev sealed 10 odds in ${Math.round(call.elapsed_ms)} ms`;
+        show();
+      } catch (err) {
+        $("claim").innerHTML = `<span class="jx-error">${escapeHtml(err.message)}</span>`;
+        $("controls").innerHTML = `<div class="row"><button id="deal">Try again</button></div>`;
+      }
+    }
+
+    function show() {
+      $("reveal").innerHTML = "";
+      $("n").textContent = `Claim ${i + 1} of 10`;
+      $("claim").textContent = deck[i][0];
+      $("controls").innerHTML = `
+        <div class="slider"><span>surely false</span><input id="p" type="range" min="1" max="99" value="50" aria-label="Probability the claim is true"><span>surely true</span></div>
+        <div class="odds"><span id="pv">50%</span><small>your odds that it's true</small></div>
+        <div class="row"><button id="bet">Place bet</button></div>`;
+      $("p").addEventListener("input", (e) => ($("pv").textContent = `${e.target.value}%`));
+    }
+
+    function bet() {
+      const p = Number($("p").value) / 100;
+      const [claim, truth] = deck[i];
+      const q = jevOdds[i];
+      const a = points(p, truth), b = points(q, truth);
+      you += a; jev += b;
+      $("you").textContent = you; $("jev").textContent = jev;
+      rows.push({ claim, truth, p, q, a, b });
+      $("reveal").innerHTML = `<div class="reveal">
+        <div><span>You said</span><b>${Math.round(p * 100)}%</b><span>+${a}</span></div>
+        <div class="truth"><span>It's actually</span><b class="${truth ? "t" : "f"}">${truth ? "TRUE" : "FALSE"}</b><span>&nbsp;</span></div>
+        <div><span>Jev said</span><b>${Math.round(q * 100)}%</b><span>+${b}</span></div></div>`;
+      $("controls").innerHTML = `<div class="row"><button id="nextc">${i === 9 ? "Settle the books" : "Next claim"}</button></div>`;
+      history();
+    }
+
+    function next() {
+      i += 1;
+      if (i < 10) return show();
+      const winner = you > jev ? "You out-calibrated a machine. The bookie tips his hat." : you === jev ? "Dead heat. The bookie keeps the stakes." : "Jev takes the purse. Its odds were closer to the truth than yours.";
+      const jConf = rows.filter((r) => Math.abs(r.q - 0.5) > 0.35);
+      const jRight = jConf.filter((r) => (r.q > 0.5) === r.truth).length;
+      $("n").textContent = "Final";
+      $("claim").textContent = winner;
+      $("reveal").innerHTML = `<div class="final">You: ${you} · Jev: ${jev}<br>When Jev was confident (over 85% one way or the other), it was right ${jRight} of ${jConf.length} times. That's what calibrated means.</div>`;
+      $("controls").innerHTML = `<div class="row"><button id="deal">Deal again</button></div>`;
+    }
+
+    function history() {
+      $("history").innerHTML = `<table><tr><th>Claim</th><th>Truth</th><th class="num">You</th><th class="num">Jev</th></tr>${rows.map((r) => `<tr><td>${escapeHtml(r.claim)}</td><td>${r.truth ? "true" : "false"}</td><td class="num ${r.a >= r.b ? "win" : "lose"}">${Math.round(r.p * 100)}% · ${r.a}</td><td class="num ${r.b >= r.a ? "win" : "lose"}">${Math.round(r.q * 100)}% · ${r.b}</td></tr>`).join("")}</table>`;
+    }
+  </script>
+</body>
+</html>

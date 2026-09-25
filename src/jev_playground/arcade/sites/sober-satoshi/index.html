@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sober Satoshi</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      --char: #17130e; --char-2: #211b14; --orange: #f7931a; --cream: #f3e9d8; --green: #4cc38a; --red: #e5484d; --mute: #a8997f;
+      --jx-bg: var(--char); --jx-accent: var(--orange); --jx-panel: #1e1812; --jx-panel-2: #261f17; --jx-line: #3a2f22; --jx-dim: var(--mute); --jx-ink: var(--cream);
+      --jx-sans: "IBM Plex Sans", system-ui, sans-serif; --jx-mono: "IBM Plex Mono", monospace;
+    }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 16px 60px; }
+    .head { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: end; border-bottom: 1px solid var(--jx-line); padding-bottom: 14px; }
+    h1 { font: 400 clamp(46px, 7vw, 84px)/.9 "Instrument Serif", serif; margin: 6px 0; }
+    h1 i { color: var(--orange); }
+    .lede { color: var(--mute); max-width: 70ch; margin: 6px 0 0; }
+    .px { text-align: right; font-family: var(--jx-mono); }
+    .px b { display: block; font: 600 clamp(34px, 5vw, 54px)/1 var(--jx-mono); color: var(--cream); font-variant-numeric: tabular-nums; }
+    .px span { font-size: 13px; color: var(--mute); }
+    .up { color: var(--green) !important; } .down { color: var(--red) !important; }
+    .net { display: inline-block; font: 600 11px var(--jx-mono); border: 1px solid var(--orange); color: var(--orange); border-radius: 4px; padding: 2px 6px; margin-left: 6px; }
+    .grid { display: grid; grid-template-columns: 1.45fr 1fr; gap: 18px; margin-top: 18px; }
+    .panel { background: var(--jx-panel); border: 1px solid var(--jx-line); border-radius: 10px; padding: 14px 16px; }
+    .panel h2 { font: 400 26px "Instrument Serif"; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .panel h2 small { font: 12px var(--jx-mono); color: var(--mute); }
+    svg.chart { width: 100%; height: auto; display: block; }
+    .tape { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 14px; }
+    .tape div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted var(--jx-line); padding: 4px 0; }
+    .tape span:first-child { color: var(--mute); }
+    .tape span:last-child { text-align: right; }
+    textarea { width: 100%; min-height: 84px; background: var(--jx-panel-2); border: 1px solid var(--jx-line); border-radius: 8px; color: var(--cream); padding: 10px; font: 15px/1.45 var(--jx-sans); resize: vertical; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .btns button { font: 600 14px var(--jx-sans); border-radius: 8px; padding: 10px 14px; border: 1px solid var(--orange); background: var(--orange); color: #1a1208; }
+    .btns button.ghost { background: transparent; color: var(--cream); border-color: var(--jx-line); }
+    .btns button:disabled { opacity: .45; }
+    .call { font: 400 clamp(34px, 5vw, 52px)/1 "Instrument Serif"; margin: 6px 0; }
+    .gate { list-style: none; padding: 0; margin: 10px 0 0; font: 13px/1.5 var(--jx-mono); }
+    .gate li::before { content: "✗ "; color: var(--red); }
+    .gate li.ok::before { content: "✓ "; color: var(--green); }
+    .book { font: 14px/1.5 var(--jx-mono); }
+    .book .row { display: flex; justify-content: space-between; border-bottom: 1px dotted var(--jx-line); padding: 4px 0; }
+    .log { max-height: 200px; overflow: auto; font: 12px/1.6 var(--jx-mono); color: var(--mute); margin-top: 8px; }
+    .warn { font-size: 13px; color: var(--mute); border-left: 3px solid var(--orange); padding-left: 10px; margin-top: 12px; }
+    .live input { width: 100%; background: var(--jx-panel-2); border: 1px solid var(--jx-line); border-radius: 8px; color: var(--cream); padding: 8px 10px; font: 14px var(--jx-mono); }
+    .auto { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-top: 10px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } .head { grid-template-columns: 1fr; } .px { text-align: left; } .tape { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="head">
+      <div>
+        <h1>Sober <i>Satoshi</i></h1>
+        <p class="lede">A Bitcoin-only desk on <a href="https://lnmarkets.com" target="_blank" rel="noopener">LN Markets</a>. The server turns live candles into plain words, because Jev is poor at arithmetic and good at judgment. Jev reads the regime, checks your thesis against the tape, and sniffs out FOMO. A gate written in code decides whether anything gets traded. Paper sats by default.</p>
+      </div>
+      <div class="px"><b id="price">—</b><span id="chg">loading the tape…</span><span class="net" id="net">paper</span></div>
+    </header>
+    <div class="grid">
+      <section>
+        <div class="panel">
+          <h2>BTC/USD · 1h <small id="asof"></small></h2>
+          <svg class="chart" id="chart" viewBox="0 0 800 300" role="img" aria-label="Bitcoin hourly candles"></svg>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <h2>The tape, in words <small>computed in code, sent to Jev</small></h2>
+          <div class="tape" id="tape"></div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <h2>Your thesis <small>optional, but Jev will judge it</small></h2>
+          <textarea id="thesis" placeholder="e.g. It just broke above 85k, everyone on X is bullish, I don't want to miss this, going long 10x.">It's been ranging all day and funding is slightly positive. I think a short from the top of the range is fine with a tight stop.</textarea>
+          <div class="btns">
+            <button id="ask">Ask the desk</button>
+            <button class="ghost" id="paper-go" disabled>Execute on paper</button>
+            <button class="ghost" id="live-go" disabled hidden>Execute live</button>
+          </div>
+          <label class="auto"><input type="checkbox" id="auto"> Paper autopilot: re-ask every 60 s and follow the gate (stops after 30 min)</label>
+          <div class="log" id="log"></div>
+        </div>
+      </section>
+      <section>
+        <div class="panel">
+          <h2>The desk's call <small id="lat"></small></h2>
+          <div class="call" id="call">—</div>
+          <div id="why" class="jx-muted">Press “Ask the desk”. Loading this page never calls Jev.</div>
+          <ul class="gate" id="gate"></ul>
+          <div id="bars" style="margin-top:10px"></div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <h2>Paper book <small>sats, inverse futures math</small></h2>
+          <div class="book" id="book"></div>
+          <div class="btns"><button class="ghost" id="paper-close" disabled>Close paper position</button><button class="ghost" id="paper-reset">Reset to 1,000,000 sats</button></div>
+        </div>
+        <div class="panel live" style="margin-top:14px">
+          <h2>LN Markets live <small id="live-state">checking…</small></h2>
+          <div id="live-body" class="jx-muted" style="font-size:14px"></div>
+        </div>
+        <p class="warn">Not financial advice. Leverage liquidates people every day. Live trading only exists if the server operator turns it on. It defaults to signet test sats, caps every order, and requires a trade token.</p>
+      </section>
+    </div>
+  </div>
+  <script type="module">
+    import { ask, chrome, bars, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Sober Satoshi", kind: "helper", accent: "#f7931a" });
+    const $ = (id) => document.getElementById(id);
+    const usd = (n) => `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 })}`;
+    const sats = (n) => `${Math.round(n).toLocaleString()} sats`;
+
+    let market = null, lastCall = null, status = null, autoTimer = null, autoStarted = 0;
+    const KEY = "sober-satoshi-paper";
+    const loadBook = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
+    let book = loadBook() || { sats: 1_000_000, position: null, trades: [] };
+    const saveBook = () => { try { localStorage.setItem(KEY, JSON.stringify(book)); } catch {} };
+    const log = (line) => $("log").insertAdjacentHTML("afterbegin", `<div>${new Date().toLocaleTimeString()} ${escapeHtml(line)}</div>`);
+
+    function pnlSats(pos, price) {
+      const dir = pos.side === "buy" ? 1 : -1;
+      return dir * pos.qty * (1 / pos.entry - 1 / price) * 1e8;
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch("/api/btc/market");
+        market = await res.json();
+        if (!res.ok) throw new Error(market.error);
+      } catch (err) { $("chg").textContent = err.message; return; }
+      const n = market.features.numbers;
+      $("price").textContent = usd(n.last_price_usd);
+      $("chg").innerHTML = `<span class="${n.change_24h_pct >= 0 ? "up" : "down"}">${n.change_24h_pct >= 0 ? "+" : ""}${n.change_24h_pct}% 24h</span> · funding ${(n.funding_rate * 100).toFixed(4)}%`;
+      $("asof").textContent = new Date(market.at).toLocaleTimeString();
+      $("tape").innerHTML = Object.entries(market.features.words).map(([k, v]) => `<div><span>${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`).join("") +
+        `<div><span>RSI 1h</span><span>${n.rsi_1h}</span></div><div><span>24h range</span><span>${usd(n.low_24h)} – ${usd(n.high_24h)}</span></div>`;
+      chart();
+      renderBook();
+    }
+
+    function chart() {
+      const c = market.hourly.slice(-72);
+      const W = 800, H = 300, P = 8, R = 60;
+      const hi = Math.max(...c.map((x) => x.high)), lo = Math.min(...c.map((x) => x.low));
+      const y = (v) => P + (hi - v) / (hi - lo || 1) * (H - 2 * P);
+      const bw = (W - R) / c.length;
+      let s = "";
+      for (let k = 0; k <= 4; k += 1) { const v = lo + (hi - lo) * k / 4; s += `<line x1="0" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#2c241a"/><text x="${W - R + 6}" y="${y(v) + 4}" fill="#a8997f" font-family="IBM Plex Mono" font-size="11">${Math.round(v).toLocaleString()}</text>`; }
+      c.forEach((x, i) => {
+        const up = x.close >= x.open, col = up ? "#4cc38a" : "#e5484d", cx = i * bw + bw / 2;
+        s += `<line x1="${cx}" x2="${cx}" y1="${y(x.high)}" y2="${y(x.low)}" stroke="${col}"/><rect x="${cx - bw * 0.35}" y="${y(Math.max(x.open, x.close))}" width="${bw * 0.7}" height="${Math.max(1, Math.abs(y(x.open) - y(x.close)))}" fill="${col}"/>`;
+      });
+      if (book.position) {
+        const p = book.position;
+        s += `<line x1="0" x2="${W - R}" y1="${y(p.entry)}" y2="${y(p.entry)}" stroke="#f7931a" stroke-dasharray="6 4"/><text x="4" y="${y(p.entry) - 4}" fill="#f7931a" font-size="11" font-family="IBM Plex Mono">paper ${p.side === "buy" ? "long" : "short"} @ ${Math.round(p.entry)}</text>`;
+        for (const [v, col] of [[p.sl, "#e5484d"], [p.tp, "#4cc38a"]]) if (v > lo && v < hi) s += `<line x1="0" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${col}" stroke-dasharray="2 4"/>`;
+      }
+      $("chart").innerHTML = s;
+    }
+
+    function renderBook() {
+      const price = market?.features.numbers.last_price_usd;
+      const p = book.position;
+      let html = `<div class="row"><span>balance</span><span>${sats(book.sats)}</span></div>`;
+      if (p && price) {
+        const pnl = pnlSats(p, price);
+        html += `<div class="row"><span>position</span><span>${p.side === "buy" ? "LONG" : "SHORT"} $${p.qty} @ ${usd(p.entry)} ×${p.lev}</span></div>
+          <div class="row"><span>stop / target</span><span>${usd(p.sl)} / ${usd(p.tp)}</span></div>
+          <div class="row"><span>unrealized</span><span class="${pnl >= 0 ? "up" : "down"}">${pnl >= 0 ? "+" : ""}${sats(pnl)}</span></div>`;
+        if ((p.side === "buy" && (price <= p.sl || price >= p.tp)) || (p.side === "sell" && (price >= p.sl || price <= p.tp))) closePaper(price <= p.sl === (p.side === "buy") ? "stop hit" : "target hit");
+      } else html += `<div class="row"><span>position</span><span>flat</span></div>`;
+      const closed = book.trades.slice(-5).reverse();
+      if (closed.length) html += `<div style="margin-top:8px;color:var(--mute)">recent</div>` + closed.map((t) => `<div class="row"><span>${t.side === "buy" ? "long" : "short"} ${escapeHtml(t.why)}</span><span class="${t.pnl >= 0 ? "up" : "down"}">${t.pnl >= 0 ? "+" : ""}${sats(t.pnl)}</span></div>`).join("");
+      $("book").innerHTML = html;
+      $("paper-close").disabled = !p;
+    }
+
+    function closePaper(why) {
+      const p = book.position;
+      if (!p) return;
+      const price = market.features.numbers.last_price_usd;
+      const pnl = pnlSats(p, price);
+      book.sats += pnl;
+      book.trades.push({ side: p.side, entry: p.entry, exit: price, pnl, why });
+      book.position = null;
+      saveBook();
+      log(`paper close (${why}) at ${usd(price)}: ${pnl >= 0 ? "+" : ""}${sats(pnl)}`);
+      renderBook(); chart();
+    }
+
+    async function desk() {
+      if (!market) await refresh();
+      const f = market.features;
+      const pos = book.position ? { side: book.position.side === "buy" ? "long" : "short", entry: book.position.entry, unrealized_sats: Math.round(pnlSats(book.position, f.numbers.last_price_usd)) } : "flat";
+      const thesis = $("thesis").value.trim();
+      const state = { instrument: "BTC/USD perpetual future on LN Markets", market: f.words, open_position: pos, trader_thesis: thesis || "none given" };
+      const q = {
+        regime: { type: "choice", instructions: "Which regime best describes the `market` right now?", criteria: { uptrend: "steady higher highs", downtrend: "steady lower lows", range: "sideways between clear levels", chop: "noisy, directionless, whipsaw", breakout: "pushing out of a range upward", breakdown: "falling out of a range downward" } },
+        stance: { type: "choice", instructions: "Given only the `market` facts, what is the most sensible stance for the next few hours?", criteria: { long: "bet on price rising", short: "bet on price falling", flat: "no position, wait for a clearer picture" } },
+        conviction: { type: "score", instructions: "How strong is the case for that stance?", criteria: ["no edge", "weak", "moderate", "strong", "very strong"] },
+        stretched: { type: "noul", instructions: "Is price stretched far enough in one direction that a snap-back is likely?" },
+        prudent: { type: "noul", instructions: "Given volatility, spread, and funding in `market`, is it prudent to open a new leveraged position right now?" },
+        stop: { type: "score", instructions: "How much room should a stop-loss give in this `market`?", criteria: ["tight", "normal", "wide", "very wide"] },
+      };
+      if (thesis) {
+        q.thesis_fits = { type: "noul", instructions: "Does `trader_thesis` agree with the `market` facts?" };
+        q.fomo = { type: "noul", instructions: "Is `trader_thesis` driven by fear of missing out, revenge, greed, or hype rather than the `market` facts?" };
+        q.thesis_side = { type: "choice", instructions: "Which side does `trader_thesis` want to take?", criteria: { long: "buy / long", short: "sell / short", flat: "no trade or unclear" } };
+      }
+      if (book.position) q.exit = { type: "noul", instructions: "Should the `open_position` be closed now given the `market`?" };
+      const r = await ask(state, q);
+      const A = r.answers;
+      const stance = A.stance.choice, pStance = A.stance.probabilities[stance];
+      const want = thesis && A.thesis_side.choice !== "flat" ? A.thesis_side.choice : stance;
+      const checks = [
+        [want !== "flat", `a direction is on the table (${want})`],
+        [pStance >= 0.55, `the market stance holds ${Math.round(pStance * 100)}% (needs 55%)`],
+        [want === stance, `the thesis side matches the market stance`],
+        [A.conviction.score >= 2, `conviction ${A.conviction.score.toFixed(2)} of 4 (needs 2)`],
+        [A.prudent.noul >= 0.6, `prudent to open now: ${Math.round(A.prudent.noul * 100)}% (needs 60%)`],
+        [!thesis || A.fomo.noul < 0.5, thesis ? `FOMO check: ${Math.round(A.fomo.noul * 100)}% (must be under 50%)` : "no thesis given, so no FOMO check"],
+        [!(A.stretched.noul > 0.7 && ((want === "long" && A.regime.choice !== "breakdown") || want === "short")), `not chasing a stretched move (${Math.round(A.stretched.noul * 100)}%)`],
+      ];
+      const pass = checks.every(([ok]) => ok);
+      const stopPct = [0.5, 1, 2, 3.5][Math.round(A.stop.score)];
+      const lev = Math.max(1, Math.min(status?.max_leverage || 10, Math.round(1 + A.conviction.score * 2)));
+      const price = f.numbers.last_price_usd;
+      const side = want === "long" ? "buy" : "sell";
+      const sl = side === "buy" ? price * (1 - stopPct / 100) : price * (1 + stopPct / 100);
+      const tp = side === "buy" ? price * (1 + 2 * stopPct / 100) : price * (1 - 2 * stopPct / 100);
+      let call, why;
+      if (book.position && A.exit?.noul >= 0.6) { call = "Close the position"; why = `Exit signal ${Math.round(A.exit.noul * 100)}%.`; }
+      else if (book.position) { call = "Hold"; why = "Already in a position, and the desk sees no reason to leave."; }
+      else if (pass) { call = `${want === "long" ? "Go long" : "Go short"} ×${lev}`; why = `Stop ${stopPct}% away at ${usd(sl)}, target ${usd(tp)} (2:1).`; }
+      else { call = "Stand aside"; why = "At least one gate failed. Doing nothing is a position too."; }
+      lastCall = { pass: pass && !book.position, side, sl, tp, lev, exit: book.position && A.exit?.noul >= 0.6, call };
+      $("call").textContent = call;
+      $("call").className = `call ${call.startsWith("Go long") ? "up" : call.startsWith("Go short") ? "down" : ""}`;
+      $("why").textContent = `${why} Regime: ${A.regime.choice}.`;
+      $("gate").innerHTML = checks.map(([ok, t]) => `<li class="${ok ? "ok" : ""}">${escapeHtml(t)}</li>`).join("");
+      $("lat").innerHTML = badge(r);
+      $("bars").innerHTML = `<div class="jx-muted" style="font-size:13px;margin:8px 0 4px">stance</div>${bars(A.stance)}<div class="jx-muted" style="font-size:13px;margin:8px 0 4px">regime</div>${bars(A.regime, { limit: 3 })}`;
+      $("paper-go").disabled = !(lastCall.pass || lastCall.exit);
+      $("live-go").disabled = !lastCall.pass;
+      return lastCall;
+    }
+
+    function paperExecute() {
+      if (!lastCall) return;
+      if (lastCall.exit) return closePaper("desk exit");
+      if (!lastCall.pass || book.position) return;
+      const price = market.features.numbers.last_price_usd;
+      const qty = 100;
+      book.position = { side: lastCall.side, qty, entry: price, lev: lastCall.lev, sl: lastCall.sl, tp: lastCall.tp, at: Date.now() };
+      saveBook();
+      log(`paper ${lastCall.side === "buy" ? "long" : "short"} $${qty} ×${lastCall.lev} at ${usd(price)}`);
+      renderBook(); chart();
+      $("paper-go").disabled = true;
+    }
+
+    $("ask").onclick = async () => { $("ask").disabled = true; try { await refresh(); await desk(); } catch (e) { $("why").innerHTML = `<span class="jx-error">${escapeHtml(e.message)}</span>`; } $("ask").disabled = false; };
+    $("paper-go").onclick = paperExecute;
+    $("paper-close").onclick = () => closePaper("manual");
+    $("paper-reset").onclick = () => { book = { sats: 1_000_000, position: null, trades: [] }; saveBook(); renderBook(); chart(); };
+    $("auto").onchange = (e) => {
+      clearInterval(autoTimer);
+      if (!e.target.checked) return log("autopilot off");
+      autoStarted = Date.now();
+      log("autopilot on (paper only)");
+      const tick = async () => {
+        if (Date.now() - autoStarted > 30 * 60 * 1000) { $("auto").checked = false; clearInterval(autoTimer); return log("autopilot stopped after 30 min"); }
+        try { await refresh(); const c = await desk(); log(`autopilot: ${c.call}`); if (c.pass || c.exit) paperExecute(); } catch (err) { log(`autopilot error: ${err.message}`); }
+      };
+      tick();
+      autoTimer = setInterval(tick, 60000);
+    };
+
+    async function liveInit() {
+      try { status = await (await fetch("/api/btc/status")).json(); } catch { return; }
+      $("net").textContent = status.live ? `live · ${status.network}` : "paper";
+      if (!status.live) {
+        $("live-state").textContent = "off";
+        $("live-body").innerHTML = status.keys_present ? "Keys are loaded, but LNM_LIVE isn't true or no trade token is set." : `No LN Markets keys on this server. Network would be <b>${status.network}</b>, capped at $${status.max_qty_usd} and ×${status.max_leverage}.`;
+        return;
+      }
+      $("live-state").textContent = `${status.network}, max $${status.max_qty_usd} ×${status.max_leverage}`;
+      $("live-go").hidden = false;
+      let token = "";
+      try { token = sessionStorage.getItem("sober-token") || ""; } catch {}
+      $("live-body").innerHTML = `<input id="tok" type="password" placeholder="trade token" value="${escapeHtml(token)}"><div class="btns"><button class="ghost" id="acct">Load account</button></div><div id="acct-out" class="book" style="margin-top:8px"></div>`;
+      const hdr = () => { const t = $("tok").value; try { sessionStorage.setItem("sober-token", t); } catch {} return { "X-Trade-Token": t, "Content-Type": "application/json" }; };
+      const loadAcct = async () => {
+        const res = await fetch("/api/btc/account", { headers: hdr() });
+        const d = await res.json();
+        if (!res.ok) { $("acct-out").innerHTML = `<span class="jx-error">${escapeHtml(d.error)}</span>`; return; }
+        $("acct-out").innerHTML = `<div class="row"><span>balance</span><span>${sats(d.account.balance)}</span></div>` + (d.running || []).map((t) => `<div class="row"><span>${t.side === "b" || t.side === "buy" ? "long" : "short"} $${t.quantity} @ ${usd(t.price)} · pl ${sats(t.pl ?? 0)}</span><span><button class="ghost" data-close="${escapeHtml(t.id)}" style="padding:2px 8px;border:1px solid var(--jx-line);background:none;color:var(--cream);border-radius:6px">close</button></span></div>`).join("");
+      };
+      $("acct").onclick = loadAcct;
+      $("acct-out").onclick = async (e) => {
+        const id = e.target.dataset?.close;
+        if (!id || !confirm("Close this live position at market?")) return;
+        const res = await fetch("/api/btc/close", { method: "POST", headers: hdr(), body: JSON.stringify({ id }) });
+        log(res.ok ? `live close ${id}` : `live close failed: ${(await res.json()).error}`);
+        loadAcct();
+      };
+      $("live-go").onclick = async () => {
+        if (!lastCall?.pass) return;
+        const qty = status.max_qty_usd;
+        if (!confirm(`Send a REAL ${lastCall.side === "buy" ? "LONG" : "SHORT"} market order on LN Markets ${status.network}?\n$${qty} ×${lastCall.lev}, stop ${usd(lastCall.sl)}, target ${usd(lastCall.tp)}`)) return;
+        const res = await fetch("/api/btc/trade", { method: "POST", headers: hdr(), body: JSON.stringify({ side: lastCall.side, quantity: qty, leverage: lastCall.lev, stoploss: lastCall.sl, takeprofit: lastCall.tp }) });
+        const d = await res.json();
+        log(res.ok ? `live order placed: ${d.id || "ok"}` : `live order failed: ${d.error}`);
+        loadAcct();
+      };
+    }
+
+    liveInit();
+    refresh();
+    setInterval(refresh, 20000);
+  </script>
+</body>
+</html>

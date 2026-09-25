@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Polite Proofreader</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --sheet: #f7fbfd; --blue: #1d6fa5; --sky: #48cae4; --ink: #17252f; --warn: #e76f51; --ok: #2a9d8f;
+      --jx-bg: #e8f3f8; --jx-ink: var(--ink); --jx-dim: #5b7080; --jx-line: #cfe2ec; --jx-panel: #fff; --jx-panel-2: #fff; --jx-accent: var(--blue);
+      --jx-sans: "Figtree", system-ui, sans-serif;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 60px; }
+    h1 { font: 600 clamp(38px, 6vw, 64px)/1 "Source Serif 4", serif; margin: 10px 0 6px; }
+    .lede { color: var(--jx-dim); max-width: 70ch; }
+    .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 22px; margin-top: 16px; }
+    .letter { background: #fff; border-radius: 6px; box-shadow: 0 1px 0 var(--jx-line), 0 20px 40px rgba(23,37,47,.08); padding: 20px 24px; }
+    .meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--jx-dim); border-bottom: 1px solid var(--jx-line); padding-bottom: 10px; margin-bottom: 10px; }
+    .meta select { border: 1px solid var(--jx-line); border-radius: 6px; padding: 4px 6px; background: #fff; font: inherit; }
+    textarea { width: 100%; min-height: 260px; border: 0; font: 18px/1.65 "Source Serif 4", serif; resize: vertical; outline: none; background: transparent; }
+    .mirror { font: 17px/1.7 "Source Serif 4", serif; margin-top: 12px; border-top: 1px dashed var(--jx-line); padding-top: 12px; }
+    .mirror span.pa { background: linear-gradient(transparent 62%, rgba(231,111,81,.35) 62%); }
+    .mirror span.vague { text-decoration: underline wavy #e9c46a; text-underline-offset: 4px; }
+    .mirror span.good { }
+    .legend { font-size: 13px; color: var(--jx-dim); margin-top: 8px; }
+    .gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .gauge { background: #fff; border-radius: 12px; padding: 10px; text-align: center; border: 1px solid var(--jx-line); }
+    .gauge svg { width: 100%; height: auto; }
+    .gauge b { display: block; font: 800 15px "Figtree"; margin-top: -6px; }
+    .gauge small { color: var(--jx-dim); font-size: 12px; }
+    .needle { transition: transform .5s cubic-bezier(.3,1.5,.5,1); transform-origin: 60px 60px; }
+    .advice { margin-top: 14px; background: #fff; border-radius: 12px; border: 1px solid var(--jx-line); padding: 14px; }
+    .advice h3 { margin: 0 0 6px; font: 600 20px "Source Serif 4"; }
+    .advice li { margin-bottom: 4px; }
+    .status { font-size: 13px; color: var(--jx-dim); margin-top: 8px; min-height: 22px; }
+    .samples button { border: 1px solid var(--jx-line); background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 13px; margin: 0 4px 6px 0; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Polite Proofreader</h1>
+    <p class="lede">Write the message you're nervous about sending. The gauges move as you type: whole-message tone at the top, and every sentence checked for passive-aggression and vagueness underneath. One call handles the whole message on every pause, usually faster than you can reread it.</p>
+    <div class="samples" id="samples"></div>
+    <div class="grid">
+      <section class="letter">
+        <div class="meta">
+          <label>To <select id="to"><option>my manager</option><option>a colleague</option><option>a client</option><option>a friend</option><option>my landlord</option></select></label>
+          <label>Via <select id="via"><option>email</option><option>Slack</option><option>WhatsApp</option></select></label>
+        </div>
+        <textarea id="text" aria-label="Your message">Hi Marcos,
+
+As per my last email, the report was due Friday. I'm sure you've been very busy. Going forward, it would be great if deadlines could actually be respected. Let me know whenever you get a chance, no rush I guess.
+
+Thanks in advance,
+Ana</textarea>
+        <div class="mirror" id="mirror"></div>
+        <div class="legend"><span style="background:linear-gradient(transparent 62%, rgba(231,111,81,.35) 62%)">highlighted</span> = reads as passive-aggressive · <span style="text-decoration:underline wavy #e9c46a">wavy</span> = vague</div>
+      </section>
+      <section>
+        <div class="gauges" id="gauges"></div>
+        <div class="advice" id="advice"><h3>Notes</h3><p class="jx-muted">Edit the message or pick a sample. Checking starts on your first pause.</p></div>
+        <div class="status" id="status"></div>
+      </section>
+    </div>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, debounce, latest, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Polite Proofreader", kind: "helper", accent: "#1d6fa5" });
+
+    const GAUGES = [
+      ["polite", "Politeness", ["rude", "curt", "neutral", "polite", "very gracious"], false],
+      ["pa", "Passive-aggression", ["none", "a hint", "noticeable", "dripping"], true],
+      ["clear", "Clarity of the ask", ["no clear ask", "vague", "clear", "crystal clear"], false],
+      ["warm", "Warmth", ["cold", "neutral", "friendly", "warm"], false],
+      ["urgency", "Pressure", ["relaxed", "some", "pushy", "demanding"], true],
+      ["length", "Length for the channel", ["too short", "right", "a bit long", "way too long"], true],
+    ];
+    const SAMPLES = {
+      "Passive-aggressive": document.getElementById("text").value,
+      "Asking for a raise": "Hi Julia,\n\nI'd like to set up time to talk about my compensation. Over the last year I led the migration to Kubernetes, cut our cloud bill by 30%, and onboarded three new engineers. I'd love to discuss how my role and pay can reflect that. Would Thursday work?\n\nThanks,\nLeo",
+      "Vague Slack": "hey so about the thing we discussed, can you maybe look into it at some point? kinda important but whatever works",
+      "Angry landlord": "The boiler has been broken for TWO WEEKS. I have called you FIVE times. This is completely unacceptable and frankly illegal. Fix it by tomorrow or I'm withholding rent.",
+    };
+    const $ = (id) => document.getElementById(id);
+    $("samples").innerHTML = Object.keys(SAMPLES).map((k) => `<button>${k}</button>`).join("");
+    $("samples").onclick = (e) => { if (e.target.tagName === "BUTTON") { $("text").value = SAMPLES[e.target.textContent]; run(); } };
+
+    function gauge(key, label, frac, bad, text) {
+      const angle = -90 + frac * 180;
+      const color = bad ? (frac > 0.55 ? "var(--warn)" : "var(--ok)") : (frac < 0.4 ? "var(--warn)" : "var(--ok)");
+      return `<div class="gauge"><svg viewBox="0 0 120 70" aria-hidden="true">
+        <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#e3eef4" stroke-width="10" stroke-linecap="round"/>
+        <path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="${frac * 100} 100"/>
+        <line class="needle" x1="60" y1="60" x2="60" y2="18" stroke="#17252f" stroke-width="3" stroke-linecap="round" style="transform: rotate(${angle}deg)"/>
+        <circle cx="60" cy="60" r="5" fill="#17252f"/></svg><b>${label}</b><small>${escapeHtml(text)}</small></div>`;
+    }
+    $("gauges").innerHTML = GAUGES.map(([k, l, c, b]) => gauge(k, l, 0.5, b, "—")).join("");
+
+    const sentences = (t) => (t.match(/[^.!?\n]+[.!?]*\n*/g) || []).map((s) => s).filter((s) => s.trim());
+
+    const check = latest((state, sents) => {
+      const q = {};
+      for (const [k, , criteria] of GAUGES) q[k] = { type: "score", instructions: { question: `Rate the \`message\` for ${k === "length" ? "its length given `channel`" : k === "pa" ? "passive-aggression" : k === "urgency" ? "how much pressure it puts on the reader" : k === "clear" ? "how clear its request is" : k === "polite" ? "politeness toward `recipient`" : "warmth"}.` }, criteria };
+      q.reply = { type: "noul", instructions: "Is `recipient` likely to reply quickly and positively to `message`?" };
+      q.misread = { type: "noul", instructions: "Could `message` easily be read as angrier than the writer probably intends?" };
+      q.ask = { type: "noul", instructions: "Does `message` contain a specific request with a clear next step?" };
+      sents.forEach((_, i) => {
+        q[`s${i}_pa`] = { type: "noul", instructions: `Does \`sentences[${i}]\` read as passive-aggressive or sarcastic?` };
+        q[`s${i}_vague`] = { type: "noul", instructions: `Is \`sentences[${i}]\` vague about what the writer wants or when?` };
+      });
+      return ask(state, q);
+    });
+
+    async function run() {
+      const message = $("text").value.trim();
+      if (!message) return;
+      const sents = sentences($("text").value).slice(0, 40);
+      $("status").innerHTML = `<span class="jx-spin"></span> reading…`;
+      let r;
+      try {
+        r = await check({ recipient: $("to").value, channel: $("via").value, message, sentences: sents.map((s) => s.trim()) }, sents);
+      } catch (err) { $("status").innerHTML = `<span class="jx-error">${escapeHtml(err.message)}</span>`; return; }
+      if (!r) return;
+      const A = r.answers;
+      $("gauges").innerHTML = GAUGES.map(([k, l, c, b]) => {
+        const a = A[k];
+        return gauge(k, l, a.score / (c.length - 1), b, a.legend[String(Math.round(a.score))]);
+      }).join("");
+      $("mirror").innerHTML = sents.map((s, i) => {
+        const pa = A[`s${i}_pa`].noul > 0.55, vague = A[`s${i}_vague`].noul > 0.6;
+        return `<span class="${pa ? "pa" : ""} ${vague ? "vague" : ""}" title="passive-aggressive ${Math.round(A[`s${i}_pa`].noul * 100)}%, vague ${Math.round(A[`s${i}_vague`].noul * 100)}%">${escapeHtml(s).replace(/\n/g, "<br>")}</span>`;
+      }).join("");
+      const notes = [];
+      const paCount = sents.filter((_, i) => A[`s${i}_pa`].noul > 0.55).length;
+      if (paCount) notes.push(`${paCount} sentence${paCount > 1 ? "s" : ""} could land as passive-aggressive. Try saying the thing directly.`);
+      if (A.ask.noul < 0.5) notes.push("There's no concrete ask. Say what you need and by when.");
+      if (A.misread.noul > 0.5) notes.push(`It could read angrier than you mean (${Math.round(A.misread.noul * 100)}%). A friendly opener helps.`);
+      if (A.length.score > 1.6) notes.push(`Long for ${$("via").value}. Trim it.`);
+      if (!notes.length) notes.push("This reads well. Send it.");
+      $("advice").innerHTML = `<h3>Notes</h3><ul>${notes.map((n) => `<li>${n}</li>`).join("")}</ul><p style="margin:6px 0 0">Chance of a quick, positive reply: <b>${Math.round(A.reply.noul * 100)}%</b></p>`;
+      $("status").innerHTML = `${badge(r)} ${sents.length} sentences checked individually`;
+    }
+    $("text").addEventListener("input", debounce(run, 450));
+    $("to").onchange = run; $("via").onchange = run;
+  </script>
+</body>
+</html>

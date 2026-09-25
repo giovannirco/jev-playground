@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rapid Dynamo</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #eaf0f6;
+      --grid: #c9d6e4;
+      --ink: #10233f;
+      --dim: #52657f;
+      --trace: #d7263d;
+      --trace-2: #1b6ef3;
+      --jx-bg: var(--paper); --jx-ink: var(--ink); --jx-dim: var(--dim); --jx-line: #bccadb;
+      --jx-panel: #f6f9fc; --jx-panel-2: #ffffff;
+      --jx-sans: "Barlow", system-ui, sans-serif;
+    }
+    body {
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      background-position: -1px -1px;
+    }
+    h1 { font: 800 clamp(48px, 9vw, 108px)/.85 "Barlow Condensed", sans-serif; letter-spacing: -.02em; margin: 8px 0 12px; color: var(--ink); }
+    .lede { max-width: 62ch; color: var(--dim); font-size: 18px; margin: 0 0 24px; }
+    .rig { display: grid; grid-template-columns: 340px 1fr; gap: 18px; }
+    .panel { background: var(--jx-panel); border: 2px solid var(--ink); border-radius: 4px; padding: 16px; box-shadow: 6px 6px 0 var(--ink); }
+    .panel h2 { font: 700 22px/1 "Barlow Condensed", sans-serif; margin: 0 0 12px; }
+    label.k { display: flex; justify-content: space-between; font-weight: 600; margin: 14px 0 4px; }
+    label.k output { font: 600 15px "JetBrains Mono", monospace; color: var(--trace); }
+    input[type=range] { width: 100%; accent-color: var(--trace); }
+    .btns { display: grid; gap: 8px; margin-top: 16px; }
+    .btns button { border: 2px solid var(--ink); background: var(--ink); color: var(--paper); font: 700 18px/1 "Barlow Condensed", sans-serif; padding: 12px; border-radius: 3px; text-align: left; display: flex; justify-content: space-between; }
+    .btns button.alt { background: transparent; color: var(--ink); }
+    .btns button:disabled { opacity: .45; }
+    .btns small { font: 500 13px "Barlow", sans-serif; opacity: .75; }
+    .gauges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .gauge { background: var(--jx-panel-2); border: 2px solid var(--ink); border-radius: 4px; padding: 10px 12px; }
+    .gauge b { display: block; font: 800 40px/1 "Barlow Condensed", sans-serif; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .gauge span { color: var(--dim); font-size: 13px; }
+    .gauge.hot b { color: var(--trace); }
+    svg { width: 100%; height: auto; display: block; background: #fff; border: 2px solid var(--ink); border-radius: 4px; }
+    .axis text { font: 11px "JetBrains Mono", monospace; fill: var(--dim); }
+    .axis line { stroke: var(--grid); }
+    .note { color: var(--dim); font-size: 14px; margin: 8px 0 0; }
+    textarea { min-height: 96px; resize: vertical; font-size: 14px; }
+    .lane text { font: 10px "JetBrains Mono", monospace; fill: var(--dim); }
+    .verdict { font: 600 16px/1.4 "Barlow", sans-serif; background: #fff; border-left: 6px solid var(--trace); padding: 10px 14px; margin: 14px 0 0; }
+    .sample { margin-top: 16px; }
+    .sample summary { cursor: pointer; font-weight: 600; }
+    .sample ul { columns: 2; font-size: 13px; color: var(--dim); padding-left: 18px; }
+    @media (max-width: 900px) { .rig { grid-template-columns: 1fr; } .gauges { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <main class="jx-wrap">
+    <h1>Rapid Dynamo</h1>
+    <p class="lede">A dyno for a decision model. Jev reads the state once and answers every question in parallel, so adding questions should barely move the needle. Put it on the rollers and see for yourself.</p>
+    <div class="rig">
+      <section class="panel">
+        <h2>The rig</h2>
+        <label class="jx-muted" for="state" style="font-size:14px">State under test</label>
+        <textarea id="state" class="jx-field">Order #88213. The customer bought a waterproof hiking jacket in forest green, size M, for $189. It arrived two days late in a torn box. The zipper sticks halfway and one seam near the hood leaks in heavy rain. They love the color and fit, and want a replacement rather than a refund before a trip to Patagonia next Friday. They mention they've been a member for six years.</textarea>
+        <label class="k" for="nq">Questions per call <output id="nq-o">60</output></label>
+        <input id="nq" type="range" min="1" max="250" value="60">
+        <label class="k" for="par">Parallel calls <output id="par-o">10</output></label>
+        <input id="par" type="range" min="1" max="50" value="10">
+        <div class="btns">
+          <button id="one">Single pull <small>one call, N questions</small></button>
+          <button id="sweep" class="alt">Sweep 1 → 250 <small>latency vs. questions</small></button>
+          <button id="flood" class="alt">Flood <small>P calls at once, N each</small></button>
+        </div>
+        <details class="sample">
+          <summary>What gets asked</summary>
+          <p class="note">Mostly Nouls ("Does the state mention the zipper?"), with a Score every fifth question and a Choice every seventh. They're generated from a bank of 250 topics.</p>
+          <ul id="sample"></ul>
+        </details>
+      </section>
+      <section>
+        <div class="gauges">
+          <div class="gauge hot"><b id="g-ms">—</b><span>ms, last call</span></div>
+          <div class="gauge"><b id="g-dps">—</b><span>decisions / second</span></div>
+          <div class="gauge"><b id="g-per">—</b><span>ms per question</span></div>
+          <div class="gauge"><b id="g-k">—</b><span>USD per 1,000 decisions</span></div>
+        </div>
+        <svg id="chart" viewBox="0 0 760 360" role="img" aria-label="Latency against number of questions"></svg>
+        <p class="note" id="chart-note">Every call you make lands on this sheet: x is questions in the call, y is Jev's round trip. A flat trace is the whole point.</p>
+        <div id="verdict"></div>
+        <h2 style="font:700 22px/1 'Barlow Condensed',sans-serif;margin:22px 0 8px">Flood timeline</h2>
+        <svg id="gantt" viewBox="0 0 760 220" role="img" aria-label="Timeline of parallel calls"></svg>
+        <p class="note" id="gantt-note">Each bar is one call, from when it left the browser to when its answers came back.</p>
+      </section>
+    </div>
+  </main>
+  <script type="module">
+    import { ask, chrome, money } from "/shared/jev.js";
+    chrome({ title: "Rapid Dynamo", kind: "lab", accent: "#d7263d" });
+
+    const TOPICS = ["price", "shipping delay", "damaged packaging", "zipper", "seam leak", "color", "fit", "size", "refund", "replacement", "loyalty", "travel plans", "deadline", "rain", "hood", "waterproofing", "membership", "tone of gratitude", "anger", "sarcasm", "a competitor", "a discount code", "a chargeback threat", "social media", "a manager", "warranty", "store pickup", "a gift", "a child", "a pet", "the weather", "a phone call", "an email", "a tracking number", "a courier", "customs", "a second item", "a missing item", "a wrong item", "a promise", "a review", "a star rating", "Patagonia", "hiking", "camping", "snow", "the hood drawstring", "a stain", "a smell", "the fabric", "breathability", "insulation", "pockets", "a torn box", "sustainability", "recycled materials", "an influencer", "a friend's recommendation", "a return label", "a store credit", "exchange for another color", "size up", "size down", "express shipping", "Friday", "Monday", "six years", "a lawyer", "the CEO", "a coupon", "a bank", "a credit card", "cash", "a receipt", "an invoice", "a password", "an account login", "an address change", "a phone number", "an apology", "a thank you", "urgency", "politeness", "frustration", "humor", "repair", "a tailor", "a seam sealer", "tape", "glue", "a photo", "a video", "a checklist", "a warehouse", "a supplier", "a factory defect", "quality control", "a recall", "safety", "a fire", "a flood", "an injury", "a hospital", "a doctor", "medicine", "food", "coffee", "a restaurant", "a hotel", "a flight", "a train", "a car", "a bicycle", "a tent", "a backpack", "boots", "gloves", "a hat", "socks", "trousers", "a fleece", "a scarf", "sunglasses", "a map", "a compass", "a GPS", "batteries", "a headlamp", "a stove", "a water filter", "a first aid kit", "a knife", "rope", "a sleeping bag", "a mountain", "a glacier", "a river", "the ocean", "a beach", "a city", "Argentina", "Chile", "Brazil", "Europe", "the United States", "Asia", "a holiday", "a birthday", "a wedding", "a funeral", "school", "work", "a boss", "a colleague", "a spouse", "a sibling", "a parent", "a neighbor", "a stranger", "a subscription", "a newsletter", "spam", "privacy", "data deletion", "an app", "a website bug", "a checkout error", "a double charge", "a currency conversion", "taxes", "a customs fee", "a duty charge", "a gift card", "points", "a VIP tier", "early access", "a preorder", "a backorder", "stock levels", "a restock", "a waitlist", "a sale", "Black Friday", "a clearance", "a bundle", "a free gift", "a sample", "a catalogue", "a store visit", "a sales associate", "a fitting room", "an alteration", "a hem", "a sleeve length", "a chest measurement", "a waist measurement", "a height", "a weight", "a body type", "comfort", "warmth", "style", "fashion", "a trend", "a brand", "a logo", "embroidery", "a personalization", "a monogram", "a gift wrap", "a note card", "a surprise", "a complaint history", "a previous refund", "a previous replacement", "fraud", "a stolen package", "a porch", "a doorman", "a locker", "a pickup point", "a signature", "a delivery photo", "a GPS ping", "a late courier", "a rude courier", "a kind courier", "a weekend", "a holiday closure", "a time zone", "a language barrier", "Spanish", "Portuguese", "English", "a translation", "accessibility", "a disability", "an elderly customer", "a student", "a teacher", "a nurse", "a soldier", "a firefighter"];
+
+    const nq = document.getElementById("nq");
+    const par = document.getElementById("par");
+    const stateEl = document.getElementById("state");
+    const points = [];
+
+    function questions(n) {
+      const q = {};
+      for (let i = 0; i < n; i += 1) {
+        const topic = TOPICS[i % TOPICS.length];
+        if (i % 7 === 6) {
+          q[`q${i}`] = { type: "choice", instructions: `What is the customer's stance on ${topic}?`, criteria: { positive: "likes it or wants it", negative: "dislikes it or complains about it", absent: "not mentioned" } };
+        } else if (i % 5 === 4) {
+          q[`q${i}`] = { type: "score", instructions: `How central is ${topic} to this message?`, criteria: ["not present", "mentioned in passing", "a main point"] };
+        } else {
+          q[`q${i}`] = { type: "noul", instructions: `Does the state mention ${topic}?` };
+        }
+      }
+      return q;
+    }
+
+    function renderSample() {
+      const q = questions(Math.min(14, Number(nq.value)));
+      document.getElementById("sample").innerHTML = Object.values(q).map((x) => `<li>${x.type}: ${x.instructions}</li>`).join("");
+    }
+
+    const sync = () => {
+      document.getElementById("nq-o").textContent = nq.value;
+      document.getElementById("par-o").textContent = par.value;
+      renderSample();
+    };
+    nq.addEventListener("input", sync);
+    par.addEventListener("input", sync);
+    sync();
+
+    const chart = document.getElementById("chart");
+    function drawChart() {
+      const W = 760, H = 360, L = 56, R = 16, T = 16, B = 40;
+      const maxY = Math.max(2000, ...points.map((p) => p.ms)) * 1.1;
+      const x = (v) => L + (v / 250) * (W - L - R);
+      const y = (v) => H - B - (v / maxY) * (H - T - B);
+      let s = `<g class="axis">`;
+      for (let v = 0; v <= 250; v += 50) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/><text x="${x(v)}" y="${H - B + 18}" text-anchor="middle">${v}</text>`;
+      const step = maxY > 5000 ? 1000 : 500;
+      for (let v = 0; v <= maxY; v += step) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+      s += `<text x="${(W + L) / 2}" y="${H - 6}" text-anchor="middle">questions in one call</text><text x="14" y="${(H) / 2}" transform="rotate(-90 14 ${H / 2})" text-anchor="middle">ms</text></g>`;
+      const byN = {};
+      points.forEach((p) => { (byN[p.n] ||= []).push(p.ms); });
+      const med = Object.entries(byN).map(([n, arr]) => [Number(n), arr.sort((a, b) => a - b)[Math.floor((arr.length - 1) / 2)]]).sort((a, b) => a[0] - b[0]);
+      if (med.length > 1) s += `<polyline fill="none" stroke="var(--trace)" stroke-width="3" stroke-linejoin="round" points="${med.map(([n, ms]) => `${x(n)},${y(ms)}`).join(" ")}"/>`;
+      s += points.map((p) => `<circle cx="${x(p.n)}" cy="${y(p.ms)}" r="${p.flood ? 3 : 5}" fill="${p.flood ? "var(--trace-2)" : "var(--trace)"}" fill-opacity="${p.flood ? 0.45 : 0.9}"><title>${p.n} questions · ${Math.round(p.ms)} ms</title></circle>`).join("");
+      chart.innerHTML = s;
+    }
+    drawChart();
+
+    function gauges(result, wallSeconds, decisions, cost) {
+      document.getElementById("g-ms").textContent = Math.round(result.elapsed_ms);
+      document.getElementById("g-dps").textContent = Math.round(decisions / wallSeconds).toLocaleString();
+      document.getElementById("g-per").textContent = (result.elapsed_ms / result.questions).toFixed(result.questions > 20 ? 1 : 0);
+      document.getElementById("g-k").textContent = (cost / decisions * 1000).toFixed(5);
+    }
+
+    const buttons = [...document.querySelectorAll(".btns button")];
+    const busy = (on) => buttons.forEach((b) => (b.disabled = on));
+    const verdict = (html) => (document.getElementById("verdict").innerHTML = `<p class="verdict">${html}</p>`);
+
+    document.getElementById("one").onclick = async () => {
+      busy(true);
+      try {
+        const n = Number(nq.value);
+        const t = performance.now();
+        const r = await ask(stateEl.value, questions(n));
+        points.push({ n, ms: r.elapsed_ms });
+        gauges(r, (performance.now() - t) / 1000, n, r.usage.cost);
+        drawChart();
+        const nouls = Object.values(r.answers).filter((a) => a.type === "noul" && a.noul > 0.5).length;
+        verdict(`${n} questions in ${Math.round(r.elapsed_ms)} ms. ${nouls} topic checks came back yes. Open the x-ray to see all ${n} answers.`);
+      } catch (e) { verdict(`<span class="jx-error">${e.message}</span>`); }
+      busy(false);
+    };
+
+    document.getElementById("sweep").onclick = async () => {
+      busy(true);
+      const steps = [1, 5, 10, 25, 50, 75, 100, 150, 200, 250];
+      try {
+        for (const n of steps) {
+          for (let rep = 0; rep < 2; rep += 1) {
+            const t = performance.now();
+            const r = await ask(stateEl.value, questions(n));
+            points.push({ n, ms: r.elapsed_ms });
+            gauges(r, (performance.now() - t) / 1000, n, r.usage.cost);
+            drawChart();
+          }
+        }
+        const lo = points.filter((p) => p.n <= 5 && !p.flood).map((p) => p.ms);
+        const hi = points.filter((p) => p.n >= 200 && !p.flood).map((p) => p.ms);
+        const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+        verdict(`Going from ${lo.length ? "≤5" : "a few"} to 200+ questions changed the average round trip from ${Math.round(avg(lo))} ms to ${Math.round(avg(hi))} ms. That's ${(avg(hi) / avg(lo)).toFixed(2)}× the time for ~50× the decisions.`);
+      } catch (e) { verdict(`<span class="jx-error">${e.message}</span>`); }
+      busy(false);
+    };
+
+    document.getElementById("flood").onclick = async () => {
+      busy(true);
+      const n = Number(nq.value);
+      const p = Number(par.value);
+      const t0 = performance.now();
+      const lanes = [];
+      const gantt = document.getElementById("gantt");
+      const draw = () => {
+        const W = 760, laneH = Math.max(3, Math.min(14, 200 / p));
+        const H = Math.max(120, p * (laneH + 2) + 30);
+        gantt.setAttribute("viewBox", `0 0 ${W} ${H}`);
+        const end = Math.max(1500, ...lanes.map((l) => (l.end ?? performance.now()) - t0));
+        const x = (ms) => 40 + (ms / end) * (W - 60);
+        let s = `<g class="lane">`;
+        for (let ms = 0; ms <= end; ms += 500) s += `<line x1="${x(ms)}" x2="${x(ms)}" y1="0" y2="${H - 20}" stroke="var(--grid)"/><text x="${x(ms)}" y="${H - 6}" text-anchor="middle">${ms}</text>`;
+        s += `</g>`;
+        lanes.forEach((l, i) => {
+          const a = x(l.start - t0), b = x((l.end ?? performance.now()) - t0);
+          s += `<rect x="${a}" y="${i * (laneH + 2) + 4}" width="${Math.max(2, b - a)}" height="${laneH}" rx="2" fill="${l.err ? "#999" : l.end ? "var(--trace-2)" : "var(--trace)"}"/>`;
+        });
+        gantt.innerHTML = s;
+      };
+      const timer = setInterval(draw, 50);
+      const jobs = Array.from({ length: p }, (_, i) => {
+        const lane = { start: performance.now() };
+        lanes.push(lane);
+        return ask(`${stateEl.value}\n(variant ${i})`, questions(n)).then((r) => {
+          lane.end = performance.now();
+          points.push({ n, ms: r.elapsed_ms, flood: true });
+          return r;
+        }).catch((e) => { lane.end = performance.now(); lane.err = e; return null; });
+      });
+      const results = (await Promise.all(jobs)).filter(Boolean);
+      clearInterval(timer);
+      draw();
+      drawChart();
+      const wall = (performance.now() - t0) / 1000;
+      const decisions = results.reduce((s, r) => s + r.questions, 0);
+      const cost = results.reduce((s, r) => s + Number(r.usage.cost || 0), 0);
+      if (results.length) gauges(results[results.length - 1], wall, decisions, cost);
+      document.getElementById("gantt-note").textContent = `${results.length}/${p} calls done in ${wall.toFixed(2)} s wall clock. ${decisions.toLocaleString()} decisions for ${money(cost)}.`;
+      verdict(`${decisions.toLocaleString()} typed decisions in ${wall.toFixed(2)} seconds, about ${Math.round(decisions / wall).toLocaleString()} per second from one browser tab.${results.length < p ? ` ${p - results.length} calls were refused, probably by the rate limit.` : ""}`);
+      busy(false);
+    };
+  </script>
+</body>
+</html>

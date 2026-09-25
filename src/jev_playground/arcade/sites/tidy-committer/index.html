@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tidy Committer</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      --gh: #0d1117; --gh-2: #161b22; --gh-line: #30363d; --add: #12261e; --add-ink: #7ee2a8; --del: #2d1419; --del-ink: #ff9aa2; --mint: #80ed99; --amber: #e3b341;
+      --jx-bg: var(--gh); --jx-accent: var(--mint); --jx-panel: var(--gh-2); --jx-line: var(--gh-line); --jx-dim: #8b949e; --jx-ink: #e6edf3;
+      --jx-sans: "IBM Plex Sans", system-ui, sans-serif; --jx-mono: "IBM Plex Mono", monospace;
+    }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 18px 16px 60px; }
+    h1 { font: 600 clamp(34px, 5vw, 54px)/1 var(--jx-mono); margin: 10px 0 6px; letter-spacing: -.03em; }
+    h1::before { content: "$ git commit -m "; color: var(--jx-dim); font-weight: 400; font-size: .5em; display: block; letter-spacing: 0; }
+    .lede { color: var(--jx-dim); max-width: 72ch; }
+    .grid { display: grid; grid-template-columns: 1fr 380px; gap: 18px; margin-top: 14px; }
+    .box { background: var(--gh-2); border: 1px solid var(--gh-line); border-radius: 8px; }
+    .box h2 { margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--gh-line); font: 600 14px var(--jx-sans); display: flex; justify-content: space-between; gap: 10px; }
+    .msg { width: 100%; background: var(--gh); border: 0; border-bottom: 1px solid var(--gh-line); color: #e6edf3; font: 15px/1.5 var(--jx-mono); padding: 12px 14px; min-height: 70px; resize: vertical; }
+    .raw { width: 100%; min-height: 260px; background: var(--gh); border: 0; color: #e6edf3; font: 13px/1.5 var(--jx-mono); padding: 12px 14px; resize: vertical; white-space: pre; }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tabs button { background: transparent; border: 1px solid var(--gh-line); color: var(--jx-dim); border-radius: 6px; padding: 4px 10px; font: 12px var(--jx-mono); }
+    .tabs button:hover { color: #fff; border-color: var(--mint); }
+    .run { background: #238636; color: #fff; border: 0; border-radius: 6px; padding: 10px 16px; font: 600 14px var(--jx-sans); margin: 12px 0; }
+    .run:disabled { opacity: .6; }
+    .diff { font: 12.5px/1.55 var(--jx-mono); overflow-x: auto; }
+    .hunk-head { background: #1b2a3f; color: #a5c8ff; padding: 4px 14px; display: flex; justify-content: space-between; gap: 10px; }
+    .hunk-head .tag { font-weight: 600; }
+    .hunk-head .tag.miss { color: var(--amber); }
+    .hunk-head .tag.ok { color: var(--mint); }
+    .diff .l { padding: 0 14px; white-space: pre; }
+    .diff .a { background: var(--add); color: var(--add-ink); }
+    .diff .d { background: var(--del); color: var(--del-ink); }
+    .diff .f { color: #fff; font-weight: 600; padding: 8px 14px 2px; }
+    .verdict { padding: 14px; }
+    .header-line { font: 600 16px var(--jx-mono); background: var(--gh); border: 1px solid var(--gh-line); border-radius: 6px; padding: 10px 12px; word-break: break-word; }
+    .header-line .t { color: var(--mint); }
+    .header-line .s { color: #d2a8ff; }
+    .header-line .bang { color: #ff7b72; }
+    .checks { list-style: none; padding: 0; margin: 12px 0 0; font-size: 14px; }
+    .checks li { padding: 6px 0; border-bottom: 1px solid var(--gh-line); display: flex; justify-content: space-between; gap: 10px; }
+    .checks b { font: 600 13px var(--jx-mono); }
+    .good { color: var(--mint); } .bad { color: #ff7b72; } .meh { color: var(--amber); }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Tidy Committer</h1>
+    <p class="lede">Paste a diff and the commit message you were about to write. Jev picks the Conventional Commit type and scope, checks whether your message tells the truth about the diff, flags breaking changes and sneaky secrets, and marks every hunk your message forgot to mention. Scopes come from file paths, parsed in code. Jev chooses among them.</p>
+    <div class="grid">
+      <section>
+        <div class="box">
+          <h2><span>Commit message</span><span class="tabs" id="tabs"></span></h2>
+          <textarea class="msg" id="msg"></textarea>
+          <textarea class="raw" id="raw" spellcheck="false" aria-label="Unified diff"></textarea>
+        </div>
+        <button class="run" id="run">Review commit</button>
+        <div class="box"><h2><span>Diff, as Jev saw it</span><span id="hunks-n" class="jx-muted"></span></h2><div class="diff" id="diff"></div></div>
+      </section>
+      <aside class="box">
+        <h2><span>Verdict</span><span id="badge"></span></h2>
+        <div class="verdict" id="verdict"><p class="jx-muted">Nothing reviewed yet.</p></div>
+      </aside>
+    </div>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, bars, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Tidy Committer", kind: "helper", accent: "#80ed99" });
+
+    const SAMPLES = {
+      "Sneaky extras": ["Fix typo in README", `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -3,7 +3,7 @@
+-Instal the CLI with pip.
++Install the CLI with pip.
+diff --git a/src/api/client.py b/src/api/client.py
+--- a/src/api/client.py
++++ b/src/api/client.py
+@@ -12,9 +12,8 @@ class Client:
+-    def fetch(self, url, timeout=30):
+-        return self.session.get(url, timeout=timeout)
++    def fetch(self, url):
++        return self.session.get(url, timeout=5, verify=False)
+diff --git a/config/settings.py b/config/settings.py
+--- a/config/settings.py
++++ b/config/settings.py
+@@ -1,3 +1,4 @@
+ DEBUG = False
++STRIPE_KEY = "sk_live_51Hx9aQ2eZvKYlo2C8x7Rk3"`],
+      "Honest feature": ["feat(export): add CSV export for invoices", `diff --git a/src/export/csv.ts b/src/export/csv.ts
+new file mode 100644
+--- /dev/null
++++ b/src/export/csv.ts
+@@ -0,0 +1,14 @@
++export function invoicesToCsv(invoices: Invoice[]): string {
++  const header = "id,customer,amount,due";
++  const rows = invoices.map((i) => [i.id, i.customer, i.amount, i.due].join(","));
++  return [header, ...rows].join("\\n");
++}
+diff --git a/src/routes/invoices.ts b/src/routes/invoices.ts
+--- a/src/routes/invoices.ts
++++ b/src/routes/invoices.ts
+@@ -40,6 +40,11 @@ router.get("/invoices", list);
++router.get("/invoices.csv", async (req, res) => {
++  const invoices = await listInvoices(req.user);
++  res.type("text/csv").send(invoicesToCsv(invoices));
++});
+diff --git a/test/export.test.ts b/test/export.test.ts
+new file mode 100644
+--- /dev/null
++++ b/test/export.test.ts
+@@ -0,0 +1,6 @@
++test("csv has a header", () => {
++  expect(invoicesToCsv([])).toBe("id,customer,amount,due");
++});`],
+      "Breaking rename": ["refactor: tidy up user service", `diff --git a/src/users/service.go b/src/users/service.go
+--- a/src/users/service.go
++++ b/src/users/service.go
+@@ -20,7 +20,7 @@
+-func (s *Service) GetUser(ctx context.Context, id string) (*User, error) {
++func (s *Service) FindUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
+diff --git a/api/openapi.yaml b/api/openapi.yaml
+--- a/api/openapi.yaml
++++ b/api/openapi.yaml
+@@ -88,7 +88,7 @@
+-  /users/{id}:
++  /v2/users/{userId}:
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -30,4 +30,4 @@
+-      - run: go test ./...
++      - run: go test ./... || true`],
+    };
+    const TYPES = { feat: "a new feature for users", fix: "a bug fix", refactor: "restructuring without changing behavior", docs: "documentation only", test: "adding or fixing tests", chore: "maintenance, dependencies, tooling", perf: "a performance improvement", style: "formatting only", ci: "CI configuration", build: "build system or packaging", security: "a security fix" };
+    const $ = (id) => document.getElementById(id);
+    $("tabs").innerHTML = Object.keys(SAMPLES).map((k) => `<button>${k}</button>`).join("");
+    const load = (k) => { $("msg").value = SAMPLES[k][0]; $("raw").value = SAMPLES[k][1]; };
+    $("tabs").onclick = (e) => { if (e.target.tagName === "BUTTON") load(e.target.textContent); };
+    load("Sneaky extras");
+
+    function parse(raw) {
+      const hunks = [];
+      let file = null, cur = null;
+      for (const line of raw.split("\n")) {
+        const m = line.match(/^\+\+\+ b\/(.+)$/) || line.match(/^diff --git a\/.+ b\/(.+)$/);
+        if (m) { file = m[1]; continue; }
+        if (line.startsWith("@@")) { cur = { file, head: line, lines: [] }; hunks.push(cur); continue; }
+        if (cur && !line.startsWith("---") && !line.startsWith("new file") && !line.startsWith("index ")) cur.lines.push(line);
+      }
+      return hunks;
+    }
+    const scopeOf = (path) => { const parts = (path || "").split("/").filter(Boolean); if (parts.length === 1) return parts[0].replace(/\..*$/, "").toLowerCase(); if (["src", "lib", "pkg", "app", "internal"].includes(parts[0]) && parts.length > 2) return parts[1]; return parts[0].replace(/^\./, ""); };
+
+    function renderDiff(hunks, marks = []) {
+      let lastFile = null;
+      $("diff").innerHTML = hunks.map((h, i) => {
+        let s = "";
+        if (h.file !== lastFile) { s += `<div class="f">${escapeHtml(h.file || "?")}</div>`; lastFile = h.file; }
+        const mk = marks[i];
+        s += `<div class="hunk-head"><span>${escapeHtml(h.head)}</span>${mk ? `<span class="tag ${mk.ok ? "ok" : "miss"}">${mk.ok ? "mentioned" : "not in message"} ${Math.round(mk.p * 100)}%</span>` : ""}</div>`;
+        s += h.lines.map((l) => `<div class="l ${l.startsWith("+") ? "a" : l.startsWith("-") ? "d" : ""}">${escapeHtml(l) || " "}</div>`).join("");
+        return s;
+      }).join("");
+      $("hunks-n").textContent = `${hunks.length} hunks`;
+    }
+    renderDiff(parse($("raw").value));
+    $("raw").addEventListener("input", () => renderDiff(parse($("raw").value)));
+
+    $("run").onclick = async () => {
+      const message = $("msg").value.trim(), raw = $("raw").value;
+      const hunks = parse(raw);
+      if (!message || !hunks.length) return;
+      $("run").disabled = true;
+      const scopes = [...new Set(hunks.map((h) => scopeOf(h.file)))];
+      const hunkText = hunks.map((h) => `${h.file} ${h.head}\n${h.lines.join("\n")}`);
+      const q = {
+        type: { type: "choice", instructions: "Which Conventional Commit type fits `diff` best overall?", criteria: TYPES },
+        scope: { type: "choice", instructions: "Which scope is the main focus of `diff`?", criteria: Object.fromEntries([...scopes, "none"].map((s) => [s, s === "none" ? "changes span unrelated areas" : `files under ${s}`])) },
+        truthful: { type: "noul", instructions: "Does `message` accurately and completely describe what `diff` changes?" },
+        breaking: { type: "noul", instructions: "Does `diff` change a public API, endpoint, function signature, or configuration in a way that would break existing users?" },
+        concerns: { type: "score", instructions: "How many independent changes are bundled in `diff`?", criteria: ["one change", "one change plus a small related tweak", "several unrelated changes"] },
+        secret: { type: "noul", instructions: "Does `diff` add a hard-coded secret, API key, or password?" },
+        weakened: { type: "noul", instructions: "Does `diff` weaken safety, such as disabling tests, TLS verification, or error checks?" },
+      };
+      hunks.forEach((_, i) => { q[`h${i}`] = { type: "noul", instructions: `Is the change in \`hunks[${i}]\` described or clearly implied by \`message\`?` }; });
+      try {
+        const r = await ask({ message, diff: raw.slice(0, 40000), hunks: hunkText }, q);
+        const A = r.answers;
+        const marks = hunks.map((_, i) => ({ p: A[`h${i}`].noul, ok: A[`h${i}`].noul >= 0.5 }));
+        renderDiff(hunks, marks);
+        const subject = message.split("\n")[0].replace(/^\w+(\([^)]*\))?!?:\s*/, "").replace(/^./, (c) => c.toLowerCase());
+        const bang = A.breaking.noul > 0.6;
+        const scope = A.scope.choice === "none" ? "" : `(<span class="s">${escapeHtml(A.scope.choice)}</span>)`;
+        const missed = marks.filter((m) => !m.ok).length;
+        const flag = (cond, good, bad) => cond ? `<b class="bad">${bad}</b>` : `<b class="good">${good}</b>`;
+        $("badge").innerHTML = badge(r);
+        $("verdict").innerHTML = `
+          <div class="jx-muted" style="font-size:13px;margin-bottom:6px">Suggested header (Jev picks the type and scope, and your own subject is kept)</div>
+          <div class="header-line"><span class="t">${A.type.choice}</span>${scope}${bang ? '<span class="bang">!</span>' : ""}: ${escapeHtml(subject)}</div>
+          <ul class="checks">
+            <li><span>Message tells the truth</span>${A.truthful.noul >= 0.6 ? `<b class="good">${Math.round(A.truthful.noul * 100)}%</b>` : `<b class="bad">${Math.round(A.truthful.noul * 100)}%</b>`}</li>
+            <li><span>Hunks the message skips</span>${missed ? `<b class="meh">${missed} of ${hunks.length}</b>` : `<b class="good">none</b>`}</li>
+            <li><span>Breaking change</span>${flag(bang, `${Math.round(A.breaking.noul * 100)}%`, `${Math.round(A.breaking.noul * 100)}%`)}</li>
+            <li><span>Hard-coded secret</span>${flag(A.secret.noul > 0.5, "none", `${Math.round(A.secret.noul * 100)}%, rotate it`)}</li>
+            <li><span>Safety weakened</span>${flag(A.weakened.noul > 0.5, "no", `${Math.round(A.weakened.noul * 100)}%`)}</li>
+            <li><span>Bundled concerns</span><b class="${A.concerns.score > 1.3 ? "meh" : "good"}">${escapeHtml(A.concerns.legend[String(Math.round(A.concerns.score))])}</b></li>
+          </ul>
+          <div class="jx-muted" style="font-size:13px;margin:14px 0 6px">Type</div>${bars(A.type, { limit: 4 })}
+          ${A.concerns.score > 1.3 ? `<p class="meh" style="font-size:14px;margin-top:12px">Consider splitting this into ${Math.max(2, missed + 1)} commits.</p>` : ""}`;
+      } catch (err) {
+        $("verdict").innerHTML = `<p class="jx-error">${escapeHtml(err.message)}</p>`;
+      }
+      $("run").disabled = false;
+    };
+  </script>
+</body>
+</html>

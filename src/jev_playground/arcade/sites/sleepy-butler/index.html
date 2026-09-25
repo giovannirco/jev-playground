@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sleepy Butler</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&family=Caveat:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      --blueprint: #0f2140; --line: #5b7db1; --glow: #ffc300; --soft: #9fb7de;
+      --jx-bg: var(--blueprint); --jx-accent: var(--glow); --jx-panel: #132a50; --jx-line: #2b4a7d; --jx-dim: var(--soft);
+      --jx-sans: "Nunito", system-ui, sans-serif;
+    }
+    body { background: linear-gradient(rgba(91,125,177,.12) 1px, transparent 1px) 0 0/28px 28px, linear-gradient(90deg, rgba(91,125,177,.12) 1px, transparent 1px) 0 0/28px 28px, var(--blueprint); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 18px 16px 60px; display: grid; grid-template-columns: 380px 1fr; gap: 26px; }
+    h1 { font: 800 clamp(38px, 6vw, 64px)/1 "Nunito"; margin: 10px 0 8px; color: #fff; }
+    h1 span { font: 600 .6em "Caveat"; color: var(--glow); display: block; }
+    .lede { color: var(--jx-dim); }
+    .say { display: flex; gap: 8px; margin-top: 14px; }
+    .say input { flex: 1; background: #0b1a33; border: 2px solid var(--jx-line); border-radius: 12px; color: #fff; padding: 12px 14px; font: 600 16px "Nunito"; }
+    .say input:focus { border-color: var(--glow); outline: none; }
+    .say button { background: var(--glow); border: 0; border-radius: 12px; padding: 0 16px; font: 800 16px "Nunito"; color: var(--blueprint); }
+    .ideas { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+    .ideas button { text-align: left; background: transparent; border: 1px dashed var(--jx-line); color: var(--jx-dim); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+    .ideas button:hover { color: #fff; border-color: var(--glow); }
+    .reply { margin-top: 16px; background: var(--jx-panel); border-radius: 14px; padding: 14px; font-size: 15px; }
+    .reply ul { margin: 6px 0 0; padding-left: 18px; }
+    .reply .confirm { margin-top: 10px; background: #3a2a05; border: 1px solid var(--glow); border-radius: 10px; padding: 10px; }
+    .reply .confirm button { margin-top: 6px; margin-right: 6px; background: var(--glow); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 800; }
+    svg { width: 100%; height: auto; }
+    .room rect { fill: rgba(15,33,64,.6); stroke: var(--line); stroke-width: 3; transition: fill .6s ease; }
+    .room.lit rect { fill: rgba(255,195,0,.22); }
+    .room.dim rect { fill: rgba(255,195,0,.09); }
+    .room.here rect { stroke: var(--glow); stroke-dasharray: 8 6; }
+    .room text.name { font: 700 18px "Caveat"; fill: var(--soft); }
+    .dev text { font-size: 26px; transition: opacity .4s, filter .4s; }
+    .dev text.off { opacity: .28; filter: grayscale(1); }
+    .dev text.on { filter: drop-shadow(0 0 8px #ffc300); }
+    .dev .lbl { font: 600 11px "Nunito"; fill: var(--soft); }
+    .blinds { transition: height .8s ease; fill: #8aa1c7; opacity: .75; }
+    .thermo { font: 800 14px "Nunito"; fill: #fff; }
+    @media (max-width: 960px) { .wrap { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section>
+      <h1>Sleepy Butler <span>at your service, mostly</span></h1>
+      <p class="lede">Talk to the house like a person. Each call asks Jev about every device in every room: should this one change, and to what? That's about fifty typed decisions. Code applies the ones that clear the bar, and anything touching the front door or oven waits for your okay.</p>
+      <div class="say"><input id="cmd" placeholder="e.g. I'm heading to bed, shut everything down" aria-label="Command"><button id="send">Ask</button></div>
+      <div class="ideas" id="ideas"></div>
+      <div class="reply" id="reply">The house is quiet. The butler is pretending to be awake.</div>
+    </section>
+    <section><svg id="plan" viewBox="0 0 760 540" role="img" aria-label="Floor plan of the house"></svg></section>
+  </div>
+  <script type="module">
+    import { ask, chrome, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Sleepy Butler", kind: "helper", accent: "#ffc300" });
+
+    const ROOMS = {
+      living: { name: "Living room", x: 20, y: 20, w: 300, h: 240, devices: ["lights", "tv", "blinds", "speaker"] },
+      kitchen: { name: "Kitchen", x: 330, y: 20, w: 200, h: 240, devices: ["lights", "coffee", "oven"] },
+      office: { name: "Office", x: 540, y: 20, w: 200, h: 240, devices: ["lights", "blinds", "heater"] },
+      bedroom: { name: "Bedroom", x: 20, y: 270, w: 300, h: 250, devices: ["lights", "blinds", "heater", "speaker"] },
+      bath: { name: "Bathroom", x: 330, y: 270, w: 200, h: 250, devices: ["lights", "fan"] },
+      entry: { name: "Entry & garden", x: 540, y: 270, w: 200, h: 250, devices: ["lights", "lock", "sprinkler"] },
+    };
+    const DEVICES = {
+      lights: { icon: "💡", actions: { on: "turn on / brighter", dim: "dim to a soft glow", off: "turn off" } },
+      tv: { icon: "📺", actions: { on: "turn on", off: "turn off" } },
+      blinds: { icon: "🪟", actions: { open: "open, let light in", close: "close for privacy or darkness" } },
+      speaker: { icon: "🔊", actions: { play: "play music", stop: "stop the music" } },
+      coffee: { icon: "☕", actions: { brew: "brew coffee", off: "turn off" } },
+      oven: { icon: "🔥", actions: { preheat: "preheat", off: "turn off" } },
+      heater: { icon: "🌡️", actions: { warm: "warmer", cool: "cooler", off: "turn off" } },
+      fan: { icon: "🌀", actions: { on: "turn on", off: "turn off" } },
+      lock: { icon: "🔒", actions: { lock: "lock the front door", unlock: "unlock the front door" } },
+      sprinkler: { icon: "💧", actions: { on: "water the garden", off: "stop watering" } },
+    };
+    const SENSITIVE = new Set(["lock:unlock", "oven:preheat"]);
+    const state = { where: "living" };
+    for (const [r, room] of Object.entries(ROOMS)) for (const d of room.devices) state[`${r}.${d}`] = { lights: "off", tv: "off", blinds: "open", speaker: "stop", coffee: "off", oven: "off", heater: "off", fan: "off", lock: "lock", sprinkler: "off" }[d];
+    state["living.lights"] = "on"; state["office.lights"] = "on"; state["living.tv"] = "on";
+    let temps = { office: 21, bedroom: 20 };
+
+    const $ = (id) => document.getElementById(id);
+    const IDEAS = ["I'm heading to bed, shut everything down downstairs", "It's movie night, make the living room cozy", "Good morning! I'd love a coffee and some sunlight in the bedroom", "I'm in the office and it's freezing and too bright", "Let the dog walker in, and water the plants while you're at it", "Party time, music everywhere!", "I'm taking a shower"];
+    $("ideas").innerHTML = IDEAS.map((i) => `<button>${i}</button>`).join("");
+    $("ideas").onclick = (e) => { if (e.target.tagName === "BUTTON") { $("cmd").value = e.target.textContent; send(); } };
+
+    function draw() {
+      let s = "";
+      for (const [r, room] of Object.entries(ROOMS)) {
+        const l = state[`${r}.lights`];
+        s += `<g class="room ${l === "on" ? "lit" : l === "dim" ? "dim" : ""} ${state.where === r ? "here" : ""}"><rect x="${room.x}" y="${room.y}" width="${room.w}" height="${room.h}" rx="6"/><text class="name" x="${room.x + 12}" y="${room.y + 26}">${room.name}${state.where === r ? " · you" : ""}</text>`;
+        if (room.devices.includes("blinds")) s += `<rect class="blinds" x="${room.x + room.w - 60}" y="${room.y + 4}" width="50" height="${state[`${r}.blinds`] === "close" ? 40 : 6}" rx="2"/>`;
+        room.devices.forEach((d, i) => {
+          const v = state[`${r}.${d}`];
+          const x = room.x + 30 + (i % 2) * (room.w / 2 - 10), y = room.y + 90 + Math.floor(i / 2) * 80;
+          const on = d === "lock" ? v === "unlock" : d === "blinds" ? v === "open" : !["off", "stop"].includes(v);
+          s += `<g class="dev"><text x="${x}" y="${y}" class="${on ? "on" : "off"}">${d === "lock" && v === "unlock" ? "🔓" : DEVICES[d].icon}</text><text class="lbl" x="${x}" y="${y + 22}">${d} · ${v}${d === "heater" && temps[r] ? ` · ${temps[r]}°` : ""}</text></g>`;
+        });
+        s += `</g>`;
+      }
+      $("plan").innerHTML = s;
+    }
+    draw();
+
+    async function send() {
+      const text = $("cmd").value.trim();
+      if (!text) return;
+      $("send").disabled = true;
+      const pairs = [];
+      for (const [r, room] of Object.entries(ROOMS)) for (const d of room.devices) pairs.push([r, d]);
+      const snapshot = Object.fromEntries(pairs.map(([r, d]) => [`${ROOMS[r].name} ${d}`, state[`${r}.${d}`]]));
+      const q = {
+        where: { type: "choice", instructions: "Which room is the speaker in right now? If they don't say, keep their current room.", criteria: Object.fromEntries(Object.entries(ROOMS).map(([k, v]) => [k, v.name])) },
+        question: { type: "noul", instructions: "Is `request` only a question about the house, not a command to change anything?" },
+      };
+      pairs.forEach(([r, d], i) => {
+        const target = `the ${d} in the ${ROOMS[r].name.toLowerCase()}`;
+        q[`p${i}_change`] = { type: "noul", instructions: { device: target, question: "Does `request` ask to change `device`, directly or as part of a bigger wish?", note: "Consider where the speaker is and phrases like 'everything', 'downstairs', or 'the whole house'." } };
+        q[`p${i}_to`] = { type: "choice", instructions: { device: target, question: "If `device` changes, which action fits `request` best?" }, criteria: DEVICES[d].actions };
+      });
+      try {
+        const r = await ask({ request: text, speaker_room_before: ROOMS[state.where].name, house_now: snapshot }, q);
+        const done = [], held = [];
+        state.where = r.answers.where.choice;
+        if (r.answers.question.noul < 0.6) {
+          pairs.forEach(([rm, d], i) => {
+            const p = r.answers[`p${i}_change`].noul;
+            if (p < 0.55) return;
+            const to = r.answers[`p${i}_to`].choice;
+            const key = `${rm}.${d}`;
+            if (state[key] === to && d !== "heater") return;
+            const line = `${ROOMS[rm].name}: ${d} → ${to} (${Math.round(p * 100)}%)`;
+            if (SENSITIVE.has(`${d}:${to}`)) { held.push({ key, to, line }); return; }
+            state[key] = to;
+            if (d === "heater" && temps[rm] != null) temps[rm] += to === "warm" ? 2 : to === "cool" ? -2 : 0;
+            done.push(line);
+          });
+        }
+        draw();
+        $("reply").innerHTML = `${r.answers.question.noul >= 0.6 ? "That sounded like a question, so nothing was changed." : done.length ? "Very good." : "The butler considered it and changed nothing."}
+          ${done.length ? `<ul>${done.map((d) => `<li>${escapeHtml(d)}</li>`).join("")}</ul>` : ""}
+          ${held.length ? `<div class="confirm">Needs your okay:<ul>${held.map((h) => `<li>${escapeHtml(h.line)}</li>`).join("")}</ul><button id="ok">Yes, do it</button><button id="no" style="background:transparent;color:#fff;border:1px solid #fff">No</button></div>` : ""}
+          <p style="margin:10px 0 0">${badge(r)} <span class="jx-muted" style="font-size:13px">${r.questions} questions for ${pairs.length} devices</span></p>`;
+        if (held.length) {
+          $("ok").onclick = () => { held.forEach((h) => (state[h.key] = h.to)); draw(); $("ok").parentElement.innerHTML = "Done. The butler hopes you know what you're doing."; };
+          $("no").onclick = () => { $("no").parentElement.innerHTML = "Left as they were."; };
+        }
+      } catch (err) {
+        $("reply").innerHTML = `<span class="jx-error">${escapeHtml(err.message)}</span>`;
+      }
+      $("send").disabled = false;
+    }
+    $("send").onclick = send;
+    $("cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+  </script>
+</body>
+</html>

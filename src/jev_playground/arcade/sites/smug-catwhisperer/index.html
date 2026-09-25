@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smug Catwhisperer</title>
+  <link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/arcade.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --blush: #ffe3ef; --pink: #f15bb5; --grape: #6a4c93; --cream: #fff7fb; --mint: #9be7c4; --ink: #3d2c4e;
+      --jx-bg: var(--blush); --jx-ink: var(--ink); --jx-dim: #8a6f9e; --jx-line: #f5c2dc; --jx-panel: var(--cream); --jx-panel-2: #fff; --jx-accent: var(--pink);
+      --jx-sans: "Fredoka", system-ui, sans-serif;
+    }
+    body { background: radial-gradient(circle at 12% 18%, #ffd0e6 0 60px, transparent 61px), radial-gradient(circle at 88% 30%, #e6dcff 0 90px, transparent 91px), radial-gradient(circle at 70% 90%, #d8fbe9 0 80px, transparent 81px), var(--blush); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 22px 16px 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+    h1 { font: 700 clamp(42px, 7vw, 72px)/.95 "Fredoka"; color: var(--grape); margin: 8px 0 10px; }
+    .lede { color: var(--jx-dim); font-size: 18px; margin: 0 0 16px; }
+    textarea { width: 100%; min-height: 140px; border: 3px solid var(--pink); border-radius: 24px; padding: 16px; font: 500 19px/1.4 "Fredoka"; background: #fff; resize: vertical; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+    .chips button { border: 2px solid var(--jx-line); background: #fff; border-radius: 999px; padding: 5px 12px; font: 500 14px "Fredoka"; color: var(--grape); }
+    .go { background: var(--pink); color: #fff; border: 0; border-radius: 999px; padding: 14px 26px; font: 700 20px "Fredoka"; box-shadow: 0 6px 0 #c23c8f; }
+    .go:active { transform: translateY(4px); box-shadow: 0 2px 0 #c23c8f; }
+    .go:disabled { opacity: .6; }
+    .catbox { background: #fff; border-radius: 36px; padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(106,76,147,.15); }
+    svg.cat { width: min(320px, 80%); height: auto; }
+    .bubble { position: relative; background: var(--grape); color: #fff; border-radius: 24px; padding: 18px 20px; font: 600 21px/1.35 "Fredoka"; margin-top: 10px; }
+    .bubble::before { content: ""; position: absolute; top: -14px; left: 50%; border: 14px solid transparent; border-bottom-color: var(--grape); border-top: 0; transform: translateX(-50%); }
+    .meters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; text-align: left; }
+    .meter { background: var(--cream); border-radius: 18px; padding: 12px 14px; }
+    .meter b { display: block; font-size: 30px; color: var(--pink); }
+    .meter span { color: var(--jx-dim); font-size: 14px; }
+    .wants { margin-top: 16px; text-align: left; }
+    .vet { margin-top: 14px; background: #fff3cd; border: 2px solid #f0c24b; border-radius: 16px; padding: 12px; text-align: left; font-weight: 500; }
+    .cat .eye { transition: all .4s ease; transform-origin: center; transform-box: fill-box; }
+    .cat .ear { transition: transform .4s ease; transform-box: fill-box; }
+    .cat .tail { transition: transform .6s ease; transform-origin: 20% 90%; transform-box: fill-box; }
+    @media (max-width: 820px) { .wrap { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section>
+      <h1>Smug Catwhisperer</h1>
+      <p class="lede">Describe what your cat is doing right now. Jev works out what it wants, how hard it's judging you, and whether it's plotting something. It also checks whether any of it sounds like a reason to call the vet.</p>
+      <textarea id="text">She's sitting on my laptop keyboard, staring at me without blinking, and her tail keeps flicking. Her food bowl is half full but she can see the bottom in the middle.</textarea>
+      <div class="chips" id="chips"></div>
+      <button class="go" id="go">Whisper to the cat</button>
+      <div class="wants" id="wants"></div>
+    </section>
+    <section class="catbox">
+      <svg class="cat" viewBox="0 0 300 280" aria-hidden="true">
+        <path class="tail" id="tail" d="M225 230 C 290 220, 290 150, 255 140" stroke="#f4a261" stroke-width="18" fill="none" stroke-linecap="round"/>
+        <ellipse cx="150" cy="215" rx="85" ry="55" fill="#f4a261"/>
+        <polygon class="ear" id="earL" points="70,95 88,20 130,70" fill="#f4a261"/>
+        <polygon class="ear" id="earR" points="230,95 212,20 170,70" fill="#f4a261"/>
+        <polygon points="84,82 92,40 116,70" fill="#ffb4c8"/>
+        <polygon points="216,82 208,40 184,70" fill="#ffb4c8"/>
+        <circle cx="150" cy="120" r="85" fill="#f4a261"/>
+        <path d="M110 70 q10 12 0 24 M150 58 q10 14 0 28 M190 70 q10 12 0 24" stroke="#e07b39" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <g id="eyes">
+          <ellipse class="eye" id="eyeL" cx="118" cy="122" rx="16" ry="18" fill="#2f2f2f"/>
+          <ellipse class="eye" id="eyeR" cx="182" cy="122" rx="16" ry="18" fill="#2f2f2f"/>
+          <circle cx="123" cy="116" r="5" fill="#fff"/><circle cx="187" cy="116" r="5" fill="#fff"/>
+        </g>
+        <polygon points="150,145 140,138 160,138" fill="#ff7aa2"/>
+        <path id="mouth" d="M150 146 q-10 14 -22 6 M150 146 q10 14 22 6" stroke="#2f2f2f" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M60 140 L100 146 M60 156 L100 152 M240 140 L200 146 M240 156 L200 152" stroke="#2f2f2f" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <div class="bubble" id="bubble">…</div>
+      <div class="meters" id="meters"></div>
+      <div id="vet"></div>
+    </section>
+  </div>
+  <script type="module">
+    import { ask, chrome, bars, badge, escapeHtml } from "/shared/jev.js";
+    chrome({ title: "Smug Catwhisperer", kind: "silly", accent: "#f15bb5" });
+
+    const PRESETS = {
+      "Laptop sit": "She's sitting on my laptop keyboard, staring at me without blinking, and her tail keeps flicking. Her food bowl is half full but she can see the bottom in the middle.",
+      "3am zoomies": "It's 3am. He just sprinted from the kitchen to the bedroom four times, jumped on my face, and is now crouched behind the door with his butt wiggling.",
+      "Glass push": "She is looking me dead in the eye while slowly pushing my full glass of water towards the edge of the table with one paw.",
+      "Slow blink": "He's curled up on my chest purring, kneading my sweater, and slowly blinking at me with half-closed eyes.",
+      "Hiding": "She's been hiding under the bed for two days, isn't eating, and hisses when I try to reach her. She's usually very social.",
+      "Door drama": "He meows at the balcony door. I open it. He looks outside, sniffs, and sits there. He does not go out. He does not come in.",
+    };
+    const WANTS = {
+      food: "food, immediately, the bowl situation is unacceptable",
+      attention: "your attention, all of it, now",
+      play: "to hunt something, preferably moving",
+      outside: "to go out, or to see outside, or at least to have the option",
+      warmth: "the warmest spot, which is wherever you are",
+      territory: "your seat, your keyboard, or your stuff, as a statement",
+      chaos: "to knock something over for the drama of it",
+      alone: "to be left alone to recover in peace",
+      affection: "to love you, quietly, on its own terms",
+    };
+    const LINES = {
+      food: ["The bowl is visibly empty in the middle. Fix it.", "I'm wasting away here, human.", "Did you forget who feeds you? Oh wait, it's you."],
+      attention: ["Look at me. No, keep looking.", "Your screen is not more interesting than me.", "I have been ignored for four minutes. Unacceptable."],
+      play: ["Something must be hunted. Might as well be your ankle.", "Wave the feather thing. Now. With enthusiasm."],
+      outside: ["I'd like to consider going outside. I'll let you know.", "The door is a closed loop of possibility, and I resent it."],
+      warmth: ["You are my heater now. Don't move.", "Your lap was warm. I have claimed it."],
+      territory: ["This is mine now. Everything is mine.", "I simply sat here. The keyboard was in my way."],
+      chaos: ["Watch closely. Physics is about to happen.", "What happens if I push this? Let's find out together."],
+      alone: ["Please give me some space. Something doesn't feel right.", "I need to hide for now. Please be gentle."],
+      affection: ["You're alright. For a large hairless cat.", "I love you. I will deny this in the morning."],
+    };
+    const $ = (id) => document.getElementById(id);
+    $("chips").innerHTML = Object.keys(PRESETS).map((k) => `<button>${k}</button>`).join("");
+    $("chips").onclick = (e) => { if (e.target.tagName === "BUTTON") $("text").value = PRESETS[e.target.textContent]; };
+
+    function face({ judge, plot, happy, alert }) {
+      const squint = Math.min(1, judge / 4 * 0.8 + plot * 0.3);
+      $("eyeL").setAttribute("ry", 18 - squint * 13);
+      $("eyeR").setAttribute("ry", 18 - squint * 13);
+      $("eyeL").setAttribute("rx", alert > 0.6 ? 19 : 16);
+      $("eyeR").setAttribute("rx", alert > 0.6 ? 19 : 16);
+      const back = alert < 0.3 && happy < 0.4 ? 18 : alert > 0.6 ? -6 : 0;
+      $("earL").style.transform = `rotate(${-back}deg)`;
+      $("earR").style.transform = `rotate(${back}deg)`;
+      $("tail").style.transform = `rotate(${plot > 0.5 ? -35 : happy > 0.6 ? 12 : 0}deg)`;
+      $("mouth").setAttribute("d", happy > 0.6 ? "M150 146 q-10 14 -22 6 M150 146 q10 14 22 6" : "M130 158 q20 -8 40 0");
+    }
+
+    $("go").onclick = async () => {
+      const text = $("text").value.trim();
+      if (!text) return;
+      $("go").disabled = true;
+      $("bubble").textContent = "…";
+      try {
+        const r = await ask(text, {
+          want: { type: "choice", instructions: "What does the cat most likely want right now?", criteria: WANTS },
+          judge: { type: "score", instructions: "How much is the cat judging its human?", criteria: ["adores them", "mild tolerance", "unimpressed", "openly disappointed", "contempt"] },
+          plot: { type: "noul", instructions: "Is the cat plotting mischief right now?" },
+          happy: { type: "noul", instructions: "Does the cat seem content or happy?" },
+          alert: { type: "noul", instructions: "Is the cat alert, excited, or ready to pounce?" },
+          zoomies: { type: "noul", instructions: "Are zoomies about to happen?" },
+          vet: { type: "noul", instructions: "Does the described behavior include possible signs of illness, pain, or distress that a vet should check?", criteria: { true: "e.g. not eating for a day or more, hiding unusually, lethargy, vomiting, litter box trouble, crying in pain", false: "normal cat behavior, even if weird or annoying" } },
+        });
+        const A = r.answers;
+        const want = A.want.choice;
+        const lines = LINES[want];
+        $("bubble").textContent = `“${lines[Math.floor(Math.random() * lines.length)]}”`;
+        face({ judge: A.judge.score, plot: A.plot.noul, happy: A.happy.noul, alert: A.alert.noul });
+        const pct = (x) => `${Math.round(x * 100)}%`;
+        $("meters").innerHTML = `
+          <div class="meter"><b>${A.judge.score.toFixed(1)}/4</b><span>judgement: ${escapeHtml(A.judge.legend[Math.round(A.judge.score)])}</span></div>
+          <div class="meter"><b>${pct(A.plot.noul)}</b><span>plotting something</span></div>
+          <div class="meter"><b>${pct(A.happy.noul)}</b><span>secretly content</span></div>
+          <div class="meter"><b>${pct(A.zoomies.noul)}</b><span>zoomies imminent</span></div>`;
+        $("wants").innerHTML = `<h3 style="margin:18px 0 8px;color:var(--grape)">What she wants ${badge(r)}</h3>${bars(A.want, { limit: 5, legend: Object.fromEntries(Object.keys(WANTS).map((k) => [k, k])) })}`;
+        $("vet").innerHTML = A.vet.noul > 0.5 ? `<div class="vet">🩺 ${pct(A.vet.noul)} this sounds like more than attitude. Changes in eating, hiding, or energy can be signs of illness in cats. Consider calling your vet.</div>` : "";
+      } catch (err) {
+        $("bubble").textContent = err.message;
+      }
+      $("go").disabled = false;
+    };
+  </script>
+</body>
+</html>
