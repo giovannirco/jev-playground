@@ -1,6 +1,6 @@
 [project]
 name = "jev-playground"
-version = "0.1.0"
+version = "0.1.1"
 description = "Twenty local sites that show TypeSafe Jev making decisions."
 readme = "README.md"
 requires-python = ">=3.12"
