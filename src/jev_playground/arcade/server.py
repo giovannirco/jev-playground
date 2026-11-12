@@ -271,28 +271,43 @@ class Handler(BaseHTTPRequestHandler):
         except (TypeError, ValueError) as exc:
             self._json(400, {"error": str(exc)})
 
+    def _read_json_body(self, limit: int) -> dict[str, object] | None:
+        raw_length = self.headers.get("Content-Length", "0")
+        if not raw_length.isascii() or not raw_length.isdecimal():
+            self.close_connection = True
+            self._json(400, {"error": "Invalid Content-Length."})
+            return None
+        if len(raw_length.lstrip("0")) > len(str(limit)):
+            self.close_connection = True
+            self._json(413, {"error": "That request is too large for the arcade."})
+            return None
+        length = int(raw_length.lstrip("0") or "0")
+        if length > limit:
+            self.close_connection = True
+            self._json(413, {"error": "That request is too large for the arcade."})
+            return None
+        try:
+            body = json.loads(self.rfile.read(length) or b"{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self._json(400, {"error": "Body was not JSON."})
+            return None
+        if not isinstance(body, dict):
+            self._json(400, {"error": "Body must be a JSON object."})
+            return None
+        return body
+
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
         if path.startswith("/api/btc/"):
-            length = int(self.headers.get("Content-Length", "0") or 0)
-            try:
-                body = json.loads(self.rfile.read(min(length, 8192)) or b"{}")
-            except json.JSONDecodeError:
-                self._json(400, {"error": "Body was not JSON."})
-                return
-            self._btc_post(path, body if isinstance(body, dict) else {})
+            body = self._read_json_body(8192)
+            if body is not None:
+                self._btc_post(path, body)
             return
         if path != "/api/jev":
             self._json(404, {"error": "Unknown path."})
             return
-        length = int(self.headers.get("Content-Length", "0") or 0)
-        if length > MAX_BODY:
-            self._json(413, {"error": "That request is too large for the arcade."})
-            return
-        try:
-            body = json.loads(self.rfile.read(length) or b"{}")
-        except json.JSONDecodeError:
-            self._json(400, {"error": "Body was not JSON."})
+        body = self._read_json_body(MAX_BODY)
+        if body is None:
             return
         site = str(body.get("site") or "")
         state = body.get("state")
