@@ -29,7 +29,7 @@ OPENROUTER_API_KEY=sk-or-...
 Then:
 
 ```bash
-uv sync
+uv sync --frozen
 uv run jev-playground
 ```
 
@@ -50,10 +50,23 @@ uv run jev-playground
 
 ```bash
 docker build -t jev-playground .
-docker run --rm -p 8780:8080 -e OPENROUTER_API_KEY=sk-or-... jev-playground
+docker run --rm -p 127.0.0.1:8780:8080 --env-file .env jev-playground
 ```
 
 Inside the container the process listens on port 8080. The `-p` flag above publishes that as 8780 on your machine, so the URL matches the local run.
+
+The v0.1.1 image builds with Python 3.14.10 and runs as a non-root user. `/healthz`
+checks the local process without calling a model. The server has no general user
+authentication; keep it on loopback or behind your own access controls.
+
+## Development checks
+
+```bash
+uv run --frozen python -m unittest discover -s tests -v
+```
+
+The HTTP regression suite uses local fixtures and requires no OpenRouter key.
+Passing it does not verify model answers or authorize live trading.
 
 ## The sites
 
